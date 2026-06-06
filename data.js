@@ -691,7 +691,7 @@ hero = <span class="code-func">create_character</span>(<span class="code-string"
 dragon = <span class="code-func">create_character</span>(<span class="code-string">"Dragon"</span>, <span class="code-number">80</span>, <span class="code-number">25</span>)
 <span class="code-func">battle</span>(hero, dragon)</div>`,
         challenge: { prompt: 'Create your own RPG battle game! Add at least 2 characters with stats, a battle function with random damage, and a winner announcement.', hint: 'Use dictionaries for characters, random for damage, while loop for battle.',
-          validator: (code) => { const defs = (code.match(/def /g) || []).length; return defs >= 2 && code.includes('random') && code.includes('while') ? { success: true, message: '🎉🚀🏆 EPIC! You built an RPG battle game! +80 XP! You've truly leveled up!' } : { success: false, message: 'Create at least 2 functions, use random and a while loop for the battle.' }; } }
+          validator: (code) => { const defs = (code.match(/def /g) || []).length; return defs >= 2 && code.includes('random') && code.includes('while') ? { success: true, message: '🎉🚀🏆 EPIC! You built an RPG battle game! +80 XP! You truly leveled up!' } : { success: false, message: 'Create at least 2 functions, use random and a while loop for the battle.' }; } }
       }
     ]
   },
