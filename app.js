@@ -1,0 +1,1412 @@
+// ==================== STATE ====================
+let state = {
+  name: '',
+  avatar: '🧑‍💻',
+  theme: 'cosmic',
+  totalXP: 0,
+  streak: 0,
+  lessonsCompleted: 0,
+  projectsCompleted: 0,
+  completedLessons: [],
+  completedProjects: [],
+  weekComplete: {},
+  todayLessons: 0,
+  todayChallenges: 0,
+  todayPlayground: false,
+  todayProject: false,
+  lastVisit: null,
+  dailyLog: {},
+  onboarded: false,
+  duelsWon: 0,
+  duelsLost: 0,
+  duelHistory: [],
+  parentPin: '1234',
+  dailyTimeLimit: 0,
+  tournamentScore: 0,
+};
+
+function saveState() { localStorage.setItem('codewizard_state', JSON.stringify(state)); }
+
+function loadState() {
+  const saved = localStorage.getItem('codewizard_state');
+  if (saved) { state = { ...state, ...JSON.parse(saved) }; checkStreak(); }
+}
+
+function checkStreak() {
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  if (state.lastVisit === today) return;
+  if (state.lastVisit === yesterday) state.streak++;
+  else if (state.lastVisit !== today) state.streak = 1;
+  state.lastVisit = today;
+  state.todayLessons = 0;
+  state.todayChallenges = 0;
+  state.todayPlayground = false;
+  state.todayProject = false;
+  saveState();
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', () => {
+  loadState();
+  applyTheme(state.theme || 'cosmic');
+  initParticles();
+  if (!state.onboarded) showOnboarding();
+  else initApp();
+});
+
+function showOnboarding() {
+  document.getElementById('onboarding-modal').classList.remove('hidden');
+  const picker = document.getElementById('avatarPicker');
+  picker.innerHTML = AVATARS.map(a =>
+    `<div class="avatar-option${a === state.avatar ? ' selected' : ''}" onclick="selectAvatar(this, '${a}')">${a}</div>`
+  ).join('');
+  // Theme picker in onboarding
+  const tp = document.getElementById('onboardingThemes');
+  if (tp) {
+    tp.innerHTML = THEMES.map(t =>
+      `<div class="theme-option${t.id === 'cosmic' ? ' active' : ''}" onclick="selectOnboardingTheme(this, '${t.id}')" style="border-color:${t.color}">
+        <span class="theme-option-icon">${t.icon}</span>${t.name}
+      </div>`
+    ).join('');
+  }
+}
+
+function selectAvatar(el, a) {
+  state.avatar = a;
+  document.querySelectorAll('.avatar-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  playSound('pop');
+}
+
+function selectOnboardingTheme(el, themeId) {
+  document.querySelectorAll('.theme-picker-inline .theme-option').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  applyTheme(themeId);
+  state.theme = themeId;
+  playSound('whoosh');
+}
+
+function completeOnboarding() {
+  const name = document.getElementById('nameInput').value.trim() || 'Young Coder';
+  state.name = name;
+  state.onboarded = true;
+  state.lastVisit = new Date().toDateString();
+  state.streak = 1;
+  saveState();
+  document.getElementById('onboarding-modal').classList.add('hidden');
+  initApp();
+  showToast('Welcome, ' + name + '!', 'Your coding adventure begins now! 🚀');
+  launchConfetti();
+}
+
+function initApp() {
+  updatePlayerInfo();
+  renderDashboard();
+  renderWeekTabs();
+  renderLessons(1);
+  renderPlayground();
+  renderProjects();
+  renderLeaderboard();
+  renderAchievements();
+  renderThemeGrid();
+}
+
+// ==================== THEMES ====================
+function applyTheme(themeId) {
+  document.documentElement.setAttribute('data-theme', themeId);
+  state.theme = themeId;
+  saveState();
+  // Update particle colors
+  if (window.particleColor) {
+    const style = getComputedStyle(document.documentElement);
+    window.particleColor = style.getPropertyValue('--particle-color').trim();
+  }
+}
+
+function renderThemeGrid() {
+  const grid = document.getElementById('themeGrid');
+  if (!grid) return;
+  grid.innerHTML = THEMES.map(t =>
+    `<div class="theme-option${t.id === state.theme ? ' active' : ''}" onclick="changeTheme('${t.id}', this)" style="border-color:${t.color}">
+      <span class="theme-option-icon">${t.icon}</span>${t.name}
+    </div>`
+  ).join('');
+}
+
+function changeTheme(themeId, el) {
+  applyTheme(themeId);
+  playSound('whoosh');
+  document.querySelectorAll('#themeGrid .theme-option').forEach(e => e.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+function toggleThemePicker() {
+  const picker = document.getElementById('themePicker');
+  picker.classList.toggle('hidden');
+  renderThemeGrid();
+}
+
+// ==================== NAVIGATION ====================
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.nav-btn[data-page="${page}"]`).classList.add('active');
+  // Close theme picker
+  document.getElementById('themePicker').classList.add('hidden');
+  // Render page-specific content
+  if (page === 'multiplayer') { renderBattleStats(); renderRecentDuels(); }
+}
+
+// ==================== PLAYER INFO ====================
+function updatePlayerInfo() {
+  document.getElementById('playerName').textContent = state.name || 'Young Coder';
+  document.getElementById('playerAvatar').textContent = state.avatar;
+  const level = getLevel();
+  document.getElementById('playerLevel').textContent = `Level ${level.index + 1} - ${level.name}`;
+}
+
+function getLevel() {
+  let lvl = LEVELS[0], idx = 0;
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (state.totalXP >= LEVELS[i].minXP) { lvl = LEVELS[i]; idx = i; }
+  }
+  return { ...lvl, index: idx };
+}
+
+// ==================== DASHBOARD ====================
+function renderDashboard() {
+  document.getElementById('dashName').textContent = state.name || 'Young Coder';
+  document.getElementById('totalXP').textContent = state.totalXP;
+  document.getElementById('streak').textContent = state.streak;
+  document.getElementById('lessonsCompleted').textContent = state.lessonsCompleted;
+  document.getElementById('projectsCompleted').textContent = state.projectsCompleted;
+
+  const level = getLevel();
+  const nextLevel = LEVELS[level.index + 1];
+  document.getElementById('currentLevelLabel').textContent = level.name;
+  if (nextLevel) {
+    document.getElementById('nextLevelLabel').textContent = nextLevel.name;
+    const progress = ((state.totalXP - level.minXP) / (nextLevel.minXP - level.minXP)) * 100;
+    document.getElementById('levelFill').style.width = Math.min(progress, 100) + '%';
+    document.getElementById('levelHint').textContent = `${nextLevel.minXP - state.totalXP} XP to reach ${nextLevel.name}!`;
+  } else {
+    document.getElementById('nextLevelLabel').textContent = '🏆 MAX';
+    document.getElementById('levelFill').style.width = '100%';
+    document.getElementById('levelHint').textContent = 'You reached the highest level! 🎉';
+  }
+
+  renderWeekActivity();
+  renderDailyQuest();
+  renderRecommended();
+}
+
+function renderWeekActivity() {
+  const grid = document.getElementById('weekGrid');
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const today = new Date();
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay());
+
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + i);
+    const dateStr = d.toDateString();
+    const isToday = dateStr === today.toDateString();
+    const completed = state.dailyLog[dateStr];
+    html += `<div class="week-day${isToday ? ' today' : ''}${completed ? ' completed' : ''}">
+      <div class="week-day-label">${days[i]}</div>
+      <div class="week-day-status">${completed ? '✅' : isToday ? '📍' : '⬜'}</div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function renderDailyQuest() {
+  const container = document.getElementById('dailyQuest');
+  container.innerHTML = DAILY_QUESTS.map((q, i) => {
+    const done = q.check(state);
+    return `<div class="quest-item">
+      <div class="quest-check${done ? ' done' : ''}">${done ? '✓' : ''}</div>
+      <span class="quest-text">${q.text}</span>
+      <span class="quest-xp">+${q.xp} XP</span>
+    </div>`;
+  }).join('');
+}
+
+function renderRecommended() {
+  const container = document.getElementById('recommendedLesson');
+  let next = null;
+  for (const week of WEEKS) {
+    for (const lesson of week.lessons) {
+      if (!state.completedLessons.includes(lesson.id)) { next = { lesson, week }; break; }
+    }
+    if (next) break;
+  }
+  if (next) {
+    container.innerHTML = `<div class="recommended-card" onclick="playSound('click'); showPage('lessons'); selectWeek(${next.week.id}); openLesson('${next.lesson.id}')">
+      <div style="font-size:2.2rem" class="float">📖</div>
+      <div>
+        <div style="font-weight:700">${next.lesson.title}</div>
+        <div style="font-size:0.82rem;color:var(--text-dim)">${next.week.title} - ${next.lesson.description}</div>
+        <div style="font-size:0.8rem;color:var(--accent-yellow);margin-top:4px;font-weight:700">⚡ +${next.lesson.xp} XP</div>
+      </div>
+    </div>`;
+  } else {
+    container.innerHTML = '<p style="color:var(--text-dim)">🎉 All lessons completed! Try the Code Playground!</p>';
+  }
+}
+
+// ==================== LESSONS ====================
+let currentWeek = 1;
+
+function renderWeekTabs() {
+  const tabs = document.getElementById('weekTabs');
+  tabs.innerHTML = WEEKS.map(w => {
+    const unlocked = isWeekUnlocked(w.id);
+    return `<button class="week-tab${w.id === currentWeek ? ' active' : ''}${!unlocked ? ' locked' : ''}"
+      onclick="${unlocked ? `playSound('click'); selectWeek(${w.id})` : ''}"
+      ${!unlocked ? 'title="Complete previous week to unlock"' : ''}>
+      ${w.title}${!unlocked ? ' 🔒' : ''}
+    </button>`;
+  }).join('');
+}
+
+function isWeekUnlocked(weekId) {
+  if (weekId === 1) return true;
+  const prevWeek = WEEKS.find(w => w.id === weekId - 1);
+  if (!prevWeek) return true;
+  return prevWeek.lessons.filter(l => state.completedLessons.includes(l.id)).length >= 3;
+}
+
+function selectWeek(weekId) {
+  if (!isWeekUnlocked(weekId)) return;
+  currentWeek = weekId;
+  renderWeekTabs();
+  renderLessons(weekId);
+}
+
+function renderLessons(weekId) {
+  const week = WEEKS.find(w => w.id === weekId);
+  if (!week) return;
+  const list = document.getElementById('lessonsList');
+  list.innerHTML = week.lessons.map((lesson, i) => {
+    const completed = state.completedLessons.includes(lesson.id);
+    const locked = i > 0 && !state.completedLessons.includes(week.lessons[i - 1].id) && !completed;
+    return `<div class="lesson-card${completed ? ' completed' : ''}${locked ? ' locked' : ''} pop-in" style="--delay:${i * 0.08}s"
+      onclick="${!locked ? `playSound('click'); openLesson('${lesson.id}')` : ''}">
+      <div class="lesson-number">${completed ? '✓' : i + 1}</div>
+      <div class="lesson-info">
+        <div class="lesson-title">${lesson.title}</div>
+        <div class="lesson-desc">${lesson.description}</div>
+        <div class="lesson-meta">
+          ${lesson.tags.map(t => `<span class="lesson-tag">${t}</span>`).join('')}
+          <span class="lesson-xp-badge">⚡ ${lesson.xp} XP</span>
+        </div>
+      </div>
+      <div class="lesson-status">${completed ? '✅' : locked ? '🔒' : '▶️'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ==================== LESSON DETAIL ====================
+function openLesson(lessonId) {
+  let lesson = null;
+  for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
+  if (!lesson) return;
+  playSound('whoosh');
+
+  const detail = document.getElementById('lessonDetail');
+  const completed = state.completedLessons.includes(lesson.id);
+
+  detail.innerHTML = `
+    <h2>${lesson.title}</h2>
+    <div class="lesson-meta" style="margin-bottom:20px">
+      ${lesson.tags.map(t => `<span class="lesson-tag">${t}</span>`).join('')}
+      <span class="lesson-xp-badge">⚡ ${lesson.xp} XP</span>
+      ${completed ? '<span style="color:var(--success);font-size:0.85rem;font-weight:700">✅ Completed</span>' : ''}
+    </div>
+    <div class="lesson-content">${lesson.content}</div>
+    ${lesson.challenge ? `
+      <div class="challenge-area">
+        <h4>🎯 Challenge</h4>
+        <div class="challenge-prompt">${lesson.challenge.prompt}</div>
+        <p style="font-size:0.8rem;color:var(--text-dim)">💡 Hint: ${lesson.challenge.hint}</p>
+        <textarea class="code-input" id="challengeCode" placeholder="Write your Python code here..." spellcheck="false"></textarea>
+        <div class="challenge-actions">
+          <button class="btn btn-primary" onclick="playSound('click'); checkChallenge('${lesson.id}')">▶️ Check My Code</button>
+          <button class="btn btn-secondary" onclick="playSound('click'); document.getElementById('challengeCode').value = ''">🗑️ Clear</button>
+        </div>
+        <div class="output-area" id="challengeOutput"></div>
+      </div>
+    ` : ''}
+    ${!completed ? `<button class="btn btn-success btn-lg" style="margin-top:20px;width:100%" onclick="completeLesson('${lesson.id}', ${lesson.xp})">
+      ✅ Mark as Complete (+${lesson.xp} XP)
+    </button>` : ''}
+  `;
+
+  document.getElementById('lesson-overlay').classList.remove('hidden');
+}
+
+function closeLessonOverlay() {
+  document.getElementById('lesson-overlay').classList.add('hidden');
+}
+
+function checkChallenge(lessonId) {
+  let lesson = null;
+  for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
+  if (!lesson || !lesson.challenge) return;
+
+  const code = document.getElementById('challengeCode').value;
+  const output = document.getElementById('challengeOutput');
+
+  if (!code.trim()) {
+    output.innerHTML = '<span class="output-error">Write some code first!</span>';
+    playSound('error');
+    return;
+  }
+
+  const result = lesson.challenge.validator(code);
+  if (result.success) {
+    output.innerHTML = `<span class="output-success">${result.message}</span>`;
+    state.todayChallenges++;
+    saveState();
+    playSound('success');
+  } else {
+    output.innerHTML = `<span class="output-error">${result.message}</span>`;
+    playSound('error');
+  }
+}
+
+function completeLesson(lessonId, xp) {
+  if (state.completedLessons.includes(lessonId)) return;
+
+  state.completedLessons.push(lessonId);
+  state.lessonsCompleted++;
+  state.totalXP += xp;
+  state.todayLessons++;
+
+  if (lessonId.endsWith('l5')) {
+    state.todayProject = true;
+    state.projectsCompleted++;
+    const weekNum = parseInt(lessonId.charAt(1));
+    state.weekComplete[weekNum] = true;
+  }
+
+  state.dailyLog[new Date().toDateString()] = true;
+  saveState();
+
+  // Sound & effects
+  playSound('xp');
+  showXPPopup('+' + xp + ' XP!');
+  setTimeout(() => playSound('success'), 300);
+
+  // Check level up
+  const oldLevel = getLevel();
+
+  checkNewAchievements();
+  closeLessonOverlay();
+  updatePlayerInfo();
+  renderDashboard();
+  renderLessons(currentWeek);
+  renderWeekTabs();
+  renderProjects();
+  renderLeaderboard();
+  renderAchievements();
+
+  const newLevel = getLevel();
+  if (newLevel.index > oldLevel.index) {
+    setTimeout(() => {
+      playSound('levelUp');
+      launchConfetti();
+      showToast('🎉 LEVEL UP!', `You are now a ${newLevel.name}!`);
+    }, 600);
+  } else {
+    showToast(`+${xp} XP!`, `Lesson completed! Total: ${state.totalXP} XP`);
+  }
+}
+
+function showXPPopup(text) {
+  const popup = document.getElementById('xp-popup');
+  popup.textContent = text;
+  popup.classList.remove('hidden');
+  popup.style.animation = 'none';
+  popup.offsetHeight; // trigger reflow
+  popup.style.animation = 'xpFloat 1.2s ease forwards';
+  setTimeout(() => popup.classList.add('hidden'), 1200);
+}
+
+// ==================== CODE PLAYGROUND ====================
+function renderPlayground() {
+  const container = document.getElementById('playgroundContent');
+  container.innerHTML = `
+    <div class="playground-container">
+      <div class="playground-editor">
+        <div class="playground-editor-header">
+          <h4>📝 Code Editor</h4>
+          <div>
+            <button class="btn btn-primary" onclick="playSound('click'); runPlayground()">▶️ Run Code</button>
+            <button class="btn btn-secondary" onclick="playSound('click'); clearPlayground()" style="margin-left:8px">🗑️ Clear</button>
+          </div>
+        </div>
+        <textarea class="playground-textarea" id="playgroundCode" spellcheck="false"
+          placeholder="# Write your Python code here!"># Welcome to the Code Lab!
+# Write your Python code and click Run.
+
+name = "LevelUp"
+print(f"Hello, {name}!")
+print(f"Let's write some Python!")
+
+for i in range(1, 6):
+    print("⭐" * i)
+</textarea>
+      </div>
+      <div class="playground-output">
+        <h4>📤 Output</h4>
+        <div class="playground-output-area" id="playgroundOutput">Click "Run Code" to see the output here...</div>
+      </div>
+    </div>
+    <div class="playground-examples">
+      <h4 style="margin-bottom:8px">📋 Try These Examples:</h4>
+      ${PLAYGROUND_EXAMPLES.map((ex, i) =>
+        `<button class="example-btn" onclick="playSound('pop'); loadExample(${i})">${ex.name}</button>`
+      ).join('')}
+    </div>
+  `;
+
+  setTimeout(() => {
+    const textarea = document.getElementById('playgroundCode');
+    if (textarea) {
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          textarea.value = textarea.value.substring(0, start) + '    ' + textarea.value.substring(end);
+          textarea.selectionStart = textarea.selectionEnd = start + 4;
+        }
+      });
+    }
+  }, 100);
+}
+
+function loadExample(idx) {
+  document.getElementById('playgroundCode').value = PLAYGROUND_EXAMPLES[idx].code;
+  document.getElementById('playgroundOutput').textContent = 'Click "Run Code" to see the output...';
+}
+
+function clearPlayground() {
+  document.getElementById('playgroundCode').value = '';
+  document.getElementById('playgroundOutput').textContent = '';
+}
+
+function runPlayground() {
+  const code = document.getElementById('playgroundCode').value;
+  const output = document.getElementById('playgroundOutput');
+  state.todayPlayground = true;
+  saveState();
+  renderDailyQuest();
+
+  try {
+    const result = simulatePython(code);
+    output.innerHTML = `<span class="output-success">${escapeHtml(result)}</span>`;
+    playSound('success');
+  } catch (err) {
+    output.innerHTML = `<span class="output-error">Error: ${escapeHtml(err.message)}</span>`;
+    playSound('error');
+  }
+}
+
+// ==================== PYTHON SIMULATOR ====================
+function simulatePython(code) {
+  let output = [];
+  let variables = {};
+  let userFunctions = {};
+  const lines = code.split('\n');
+
+  function evaluate(expr) {
+    expr = expr.trim();
+    if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) return expr.slice(1, -1);
+    if (expr.startsWith('f"') || expr.startsWith("f'")) {
+      let s = expr.slice(2, -1);
+      s = s.replace(/\{([^}]+)\}/g, (_, e) => { try { return evaluate(e); } catch { return `{${e}}`; } });
+      return s;
+    }
+    if (!isNaN(expr) && expr !== '') return Number(expr);
+    if (expr === 'True') return true;
+    if (expr === 'False') return false;
+    if (variables[expr] !== undefined) return variables[expr];
+
+    if (expr.startsWith('[') && expr.endsWith(']')) {
+      const inner = expr.slice(1, -1).trim();
+      if (inner === '') return [];
+      return smartSplit(inner).map(e => evaluate(e.trim()));
+    }
+    if (expr.startsWith('{') && expr.endsWith('}')) {
+      const inner = expr.slice(1, -1).trim();
+      if (inner === '') return {};
+      const obj = {};
+      for (const pair of smartSplit(inner)) {
+        const ci = pair.indexOf(':');
+        if (ci > -1) obj[evaluate(pair.slice(0, ci).trim())] = evaluate(pair.slice(ci + 1).trim());
+      }
+      return obj;
+    }
+
+    const funcMatch = expr.match(/^(\w+(?:\.\w+)*)\((.*)?\)$/s);
+    if (funcMatch) {
+      const fname = funcMatch[1], argsStr = funcMatch[2] || '';
+      if (fname === 'len') { const a = evaluate(argsStr); return a.length !== undefined ? a.length : String(a).length; }
+      if (fname === 'int') return parseInt(evaluate(argsStr));
+      if (fname === 'float') return parseFloat(evaluate(argsStr));
+      if (fname === 'str') return String(evaluate(argsStr));
+      if (fname === 'abs') return Math.abs(evaluate(argsStr));
+      if (fname === 'max') { const a = evaluate(argsStr); return Array.isArray(a) ? Math.max(...a) : Math.max(...smartSplit(argsStr).map(e => evaluate(e))); }
+      if (fname === 'min') { const a = evaluate(argsStr); return Array.isArray(a) ? Math.min(...a) : Math.min(...smartSplit(argsStr).map(e => evaluate(e))); }
+      if (fname === 'sum') { const a = evaluate(argsStr); return Array.isArray(a) ? a.reduce((s, n) => s + n, 0) : 0; }
+      if (fname === 'range') {
+        const args = smartSplit(argsStr).map(a => evaluate(a));
+        const arr = [];
+        let start = 0, stop, step = 1;
+        if (args.length === 1) stop = args[0];
+        else if (args.length === 2) { start = args[0]; stop = args[1]; }
+        else { start = args[0]; stop = args[1]; step = args[2]; }
+        if (step > 0) for (let i = start; i < stop; i += step) arr.push(i);
+        else for (let i = start; i > stop; i += step) arr.push(i);
+        return arr;
+      }
+      if (fname === 'enumerate') return evaluate(argsStr).map((v, i) => [i, v]);
+      if (fname === 'set') return [...new Set(evaluate(argsStr))];
+      if (fname === 'sorted') return [...evaluate(argsStr)].sort((x, y) => x - y);
+      if (fname === 'type') return typeof evaluate(argsStr);
+      if (fname === 'random.randint') { const a = smartSplit(argsStr).map(e => evaluate(e)); return Math.floor(Math.random() * (a[1] - a[0] + 1)) + a[0]; }
+      if (fname === 'random.choice') { const a = evaluate(argsStr); return a[Math.floor(Math.random() * a.length)]; }
+      if (fname === 'random.shuffle') { const a = variables[argsStr.trim()]; if (Array.isArray(a)) for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return undefined; }
+      if (userFunctions[fname]) return callUserFunction(fname, argsStr);
+    }
+
+    const methodMatch = expr.match(/^(\w+)\.(\w+)\((.*)\)$/s);
+    if (methodMatch) {
+      const [, objName, method, args] = methodMatch;
+      const obj = evaluate(objName);
+      if (method === 'upper') return String(obj).toUpperCase();
+      if (method === 'lower') return String(obj).toLowerCase();
+      if (method === 'split') return String(obj).split(args ? evaluate(args) : /\s+/);
+      if (method === 'replace') { const a = smartSplit(args); return String(obj).replace(new RegExp(String(evaluate(a[0])).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), String(evaluate(a[1]))); }
+      if (method === 'append') { if (Array.isArray(obj)) obj.push(evaluate(args)); return undefined; }
+      if (method === 'remove') { if (Array.isArray(obj)) { const idx = obj.indexOf(evaluate(args)); if (idx > -1) obj.splice(idx, 1); } return undefined; }
+      if (method === 'items') return Object.entries(obj || {});
+      if (method === 'keys') return Object.keys(obj || {});
+      if (method === 'values') return Object.values(obj || {});
+      if (method === 'strip') return String(obj).trim();
+      if (method === 'startswith') return String(obj).startsWith(String(evaluate(args)));
+      if (method === 'endswith') return String(obj).endsWith(String(evaluate(args)));
+      if (method === 'count') return String(obj).split(String(evaluate(args))).length - 1;
+    }
+
+    const idxMatch = expr.match(/^(\w+)\[(.+)\]$/);
+    if (idxMatch) {
+      const obj = evaluate(idxMatch[1]), key = evaluate(idxMatch[2]);
+      if (typeof obj === 'string' && typeof key === 'number' && key < 0) return obj[obj.length + key];
+      return obj[key];
+    }
+
+    const sliceMatch = expr.match(/^(\w+)\[([^:]*):([^:]*):?([^\]]*)\]$/);
+    if (sliceMatch) {
+      const obj = evaluate(sliceMatch[1]);
+      const start = sliceMatch[2] ? evaluate(sliceMatch[2]) : undefined;
+      const end = sliceMatch[3] ? evaluate(sliceMatch[3]) : undefined;
+      const step = sliceMatch[4] ? evaluate(sliceMatch[4]) : undefined;
+      if (step === -1) return typeof obj === 'string' ? obj.split('').reverse().join('') : [...obj].reverse();
+      return typeof obj === 'string' ? obj.slice(start, end) : obj.slice(start, end);
+    }
+
+    const strMul = expr.match(/^(.+?)\s*\*\s*(.+)$/);
+    if (strMul) {
+      const left = evaluate(strMul[1]), right = evaluate(strMul[2]);
+      if (typeof left === 'string' && typeof right === 'number') return left.repeat(right);
+      if (typeof left === 'number' && typeof right === 'string') return right.repeat(left);
+      if (typeof left === 'number' && typeof right === 'number') return left * right;
+    }
+
+    try {
+      let jsExpr = expr.replace(/\bTrue\b/g, 'true').replace(/\bFalse\b/g, 'false')
+        .replace(/\band\b/g, '&&').replace(/\bor\b/g, '||').replace(/\bnot\b/g, '!');
+      for (const [k, v] of Object.entries(variables)) {
+        const re = new RegExp(`\\b${k}\\b`, 'g');
+        if (typeof v === 'string') jsExpr = jsExpr.replace(re, `"${v}"`);
+        else if (typeof v === 'number' || typeof v === 'boolean') jsExpr = jsExpr.replace(re, String(v));
+      }
+      return Function('"use strict"; return (' + jsExpr + ')')();
+    } catch {}
+    return expr;
+  }
+
+  function smartSplit(str) {
+    const result = []; let depth = 0, current = '', inStr = false, strChar = '';
+    for (let i = 0; i < str.length; i++) {
+      const c = str[i];
+      if (inStr) { current += c; if (c === strChar && str[i-1] !== '\\') inStr = false; }
+      else if (c === '"' || c === "'") { inStr = true; strChar = c; current += c; }
+      else if ('([{'.includes(c)) { depth++; current += c; }
+      else if (')]}'.includes(c)) { depth--; current += c; }
+      else if (c === ',' && depth === 0) { result.push(current.trim()); current = ''; }
+      else current += c;
+    }
+    if (current.trim()) result.push(current.trim());
+    return result;
+  }
+
+  function callUserFunction(name, argsStr) {
+    const func = userFunctions[name];
+    if (!func) return undefined;
+    const args = argsStr ? smartSplit(argsStr).map(a => evaluate(a)) : [];
+    const savedVars = { ...variables };
+    for (let i = 0; i < func.params.length; i++) {
+      const p = func.params[i];
+      variables[p.name] = i < args.length ? args[i] : (p.default !== undefined ? evaluate(p.default) : undefined);
+    }
+    const result = executeBlock(func.body);
+    const globalKeys = Object.keys(savedVars);
+    for (const k of func.params.map(p => p.name)) { if (!globalKeys.includes(k)) delete variables[k]; }
+    Object.assign(variables, savedVars);
+    return result;
+  }
+
+  function executeBlock(blockLines) {
+    let i = 0;
+    while (i < blockLines.length) {
+      const line = blockLines[i].trim();
+      if (!line || line.startsWith('#')) { i++; continue; }
+      if (line.startsWith('return ')) return evaluate(line.slice(7));
+      if (line === 'return') return undefined;
+      if (line === 'break') return '__BREAK__';
+      const result = executeLine(blockLines, i);
+      if (result && result.skip) i = result.skip; else i++;
+      if (result && result.returnValue !== undefined) return result.returnValue;
+      if (result === '__BREAK__') return '__BREAK__';
+    }
+    return undefined;
+  }
+
+  function getIndent(line) { const m = line.match(/^(\s*)/); return m ? m[1].length : 0; }
+
+  function getBlock(allLines, startIdx, baseIndent) {
+    const block = [];
+    for (let i = startIdx; i < allLines.length; i++) {
+      const line = allLines[i];
+      if (line.trim() === '' || line.trim().startsWith('#')) { block.push(line); continue; }
+      if (getIndent(line) > baseIndent) block.push(line); else break;
+    }
+    return block;
+  }
+
+  function executeLine(allLines, idx) {
+    const rawLine = allLines[idx], line = rawLine.trim();
+    if (!line || line.startsWith('#') || line === 'import random') return null;
+    const indent = getIndent(rawLine);
+
+    const defMatch = line.match(/^def\s+(\w+)\(([^)]*)\)\s*:/);
+    if (defMatch) {
+      const params = defMatch[2].trim() ? defMatch[2].split(',').map(p => {
+        p = p.trim();
+        if (p.includes('=')) { const [n, d] = p.split('=').map(s => s.trim()); return { name: n, default: d }; }
+        return { name: p };
+      }) : [];
+      const body = getBlock(allLines, idx + 1, indent);
+      userFunctions[defMatch[1]] = { params, body };
+      return { skip: idx + 1 + body.length };
+    }
+
+    const printMatch = line.match(/^print\((.+)\)$/s);
+    if (printMatch) {
+      const argsStr = printMatch[1];
+      const endMatch = argsStr.match(/,\s*end\s*=\s*("[^"]*"|'[^']*')\s*$/);
+      let end = '\n', printArgs = argsStr;
+      if (endMatch) {
+        end = endMatch[1].slice(1, -1);
+        printArgs = argsStr.slice(0, argsStr.lastIndexOf(',', argsStr.lastIndexOf('end='))).trim();
+      }
+      const args = smartSplit(printArgs).map(a => {
+        const v = evaluate(a);
+        return v === undefined ? 'None' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+      });
+      const lineOut = args.join(' ');
+      if (end === '\n' || end === '\\n') output.push(lineOut);
+      else { if (output.length === 0) output.push(''); output[output.length - 1] += lineOut + end; }
+      return null;
+    }
+
+    const forMatch = line.match(/^for\s+(\w+(?:\s*,\s*\w+)?)\s+in\s+(.+)\s*:/);
+    if (forMatch) {
+      const varNames = forMatch[1].split(',').map(v => v.trim());
+      const body = getBlock(allLines, idx + 1, indent);
+      const iterable = evaluate(forMatch[2].trim());
+      if (Array.isArray(iterable)) {
+        for (const item of iterable) {
+          if (varNames.length === 1) variables[varNames[0]] = item;
+          else if (Array.isArray(item)) varNames.forEach((v, vi) => variables[v] = item[vi]);
+          const r = executeBlock(body);
+          if (r === '__BREAK__') break;
+        }
+      }
+      return { skip: idx + 1 + body.length };
+    }
+
+    const whileMatch = line.match(/^while\s+(.+)\s*:/);
+    if (whileMatch) {
+      const body = getBlock(allLines, idx + 1, indent);
+      let safety = 0;
+      while (evaluate(whileMatch[1]) && safety++ < 1000) {
+        const r = executeBlock(body);
+        if (r === '__BREAK__') break;
+      }
+      return { skip: idx + 1 + body.length };
+    }
+
+    const ifMatch = line.match(/^if\s+(.+)\s*:/);
+    if (ifMatch) {
+      const body = getBlock(allLines, idx + 1, indent);
+      let endIdx = idx + 1 + body.length;
+      let branches = [{ condition: ifMatch[1], body }];
+      while (endIdx < allLines.length) {
+        const nl = allLines[endIdx]?.trim();
+        const elifM = nl?.match(/^elif\s+(.+)\s*:/);
+        const elseM = nl?.match(/^else\s*:/);
+        if (elifM) { const b = getBlock(allLines, endIdx + 1, indent); branches.push({ condition: elifM[1], body: b }); endIdx = endIdx + 1 + b.length; }
+        else if (elseM) { const b = getBlock(allLines, endIdx + 1, indent); branches.push({ condition: null, body: b }); endIdx = endIdx + 1 + b.length; break; }
+        else break;
+      }
+      for (const br of branches) { if (br.condition === null || evaluate(br.condition)) { executeBlock(br.body); break; } }
+      return { skip: endIdx };
+    }
+
+    const augMatch = line.match(/^(\w+)\s*(\+=|-=|\*=|\/=)\s*(.+)$/);
+    if (augMatch) {
+      const val = evaluate(augMatch[3]);
+      const op = augMatch[2];
+      if (op === '+=') variables[augMatch[1]] = (variables[augMatch[1]] || 0) + val;
+      else if (op === '-=') variables[augMatch[1]] = (variables[augMatch[1]] || 0) - val;
+      else if (op === '*=') variables[augMatch[1]] = (variables[augMatch[1]] || 0) * val;
+      else if (op === '/=') variables[augMatch[1]] = (variables[augMatch[1]] || 0) / val;
+      return null;
+    }
+
+    const multiAssign = line.match(/^(\w+)\s*,\s*(\w+)\s*=\s*(.+)$/);
+    if (multiAssign) {
+      const vals = smartSplit(multiAssign[3]).map(v => evaluate(v));
+      variables[multiAssign[1]] = vals[0];
+      variables[multiAssign[2]] = vals[1];
+      return null;
+    }
+
+    const assignMatch = line.match(/^(\w+)\s*=\s*(.+)$/);
+    if (assignMatch) { variables[assignMatch[1]] = evaluate(assignMatch[2]); return null; }
+
+    const dictAssign = line.match(/^(\w+)\[(.+)\]\s*=\s*(.+)$/);
+    if (dictAssign) { if (variables[dictAssign[1]]) variables[dictAssign[1]][evaluate(dictAssign[2])] = evaluate(dictAssign[3]); return null; }
+
+    const standaloneFunc = line.match(/^(\w+(?:\.\w+)*)\((.*)?\)$/);
+    if (standaloneFunc) {
+      if (userFunctions[standaloneFunc[1]]) callUserFunction(standaloneFunc[1], standaloneFunc[2] || '');
+      else evaluate(line);
+      return null;
+    }
+
+    const methodCall = line.match(/^(\w+)\.(\w+)\((.*)\)$/);
+    if (methodCall) { evaluate(line); return null; }
+
+    return null;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const result = executeLine(lines, i);
+    if (result && result.skip) i = result.skip - 1;
+  }
+  return output.join('\n') || '(No output)';
+}
+
+function escapeHtml(str) { return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// ==================== PROJECTS ====================
+function renderProjects() {
+  const grid = document.getElementById('projectsGrid');
+  grid.innerHTML = PROJECTS.map((p, i) => {
+    const unlocked = isWeekUnlocked(p.week);
+    const completed = state.completedProjects.includes(p.id);
+    return `<div class="project-card${!unlocked ? ' locked' : ''} pop-in" style="--delay:${i * 0.08}s">
+      <div class="project-icon float">${p.icon}</div>
+      <div class="project-title">${p.title}</div>
+      <span class="project-difficulty difficulty-${p.difficulty}">${p.difficulty}</span>
+      <div class="project-desc">${p.description}</div>
+      <div class="project-requirements">Week ${p.week} ${!unlocked ? '🔒' : ''} | ⚡ ${p.xp} XP</div>
+      ${unlocked && !completed ? `<button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="playSound('click'); startProject('${p.id}')">🚀 Start Project</button>` : ''}
+      ${completed ? '<div style="color:var(--success);margin-top:12px;font-weight:700">✅ Completed</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function startProject(projectId) {
+  const project = PROJECTS.find(p => p.id === projectId);
+  if (!project) return;
+  showPage('playground');
+  const textarea = document.getElementById('playgroundCode');
+  if (textarea) {
+    textarea.value = `# Project: ${project.title}\n# ${project.description}\n# Difficulty: ${project.difficulty}\n\n# Start coding your project here!\n\n`;
+    textarea.focus();
+  }
+  playSound('whoosh');
+  showToast('Project Started!', `Working on: ${project.title}`);
+}
+
+// ==================== LEADERBOARD ====================
+function renderLeaderboard() {
+  // Merge player into bot list
+  const playerEntry = { name: state.name || 'You', avatar: state.avatar, xp: state.totalXP, streak: state.streak, isPlayer: true };
+  const all = [...LEADERBOARD_BOTS, playerEntry].sort((a, b) => b.xp - a.xp);
+
+  // Podium (top 3)
+  const podium = document.getElementById('podium');
+  const medals = ['🥇', '🥈', '🥉'];
+  const classes = ['gold', 'silver', 'bronze'];
+  const top3 = all.slice(0, 3);
+
+  podium.innerHTML = top3.map((p, i) =>
+    `<div class="podium-place ${classes[i]}${p.isPlayer ? ' is-you' : ''} pop-in" style="--delay:${(2 - i) * 0.15}s">
+      <div class="podium-rank">${medals[i]}</div>
+      <div class="podium-avatar">${p.avatar}</div>
+      <div class="podium-name">${p.isPlayer ? '⭐ YOU' : p.name}</div>
+      <div class="podium-xp">⚡ ${p.xp} XP</div>
+    </div>`
+  ).join('');
+
+  // Rest of the table
+  const table = document.getElementById('leaderboardTable');
+  table.innerHTML = all.slice(3).map((p, i) => {
+    const rank = i + 4;
+    const lvl = getLevelForXP(p.xp);
+    return `<div class="leaderboard-row${p.isPlayer ? ' is-you' : ''}">
+      <div class="lb-rank">#${rank}</div>
+      <div class="lb-avatar">${p.avatar}</div>
+      <div class="lb-name">${p.isPlayer ? '⭐ YOU (' + p.name + ')' : p.name}</div>
+      <div class="lb-level">${lvl}</div>
+      <div class="lb-xp">⚡ ${p.xp} XP</div>
+    </div>`;
+  }).join('');
+}
+
+function getLevelForXP(xp) {
+  let lvl = LEVELS[0];
+  for (const l of LEVELS) { if (xp >= l.minXP) lvl = l; }
+  return lvl.name;
+}
+
+// ==================== ACHIEVEMENTS ====================
+function renderAchievements() {
+  const grid = document.getElementById('achievementsGrid');
+  grid.innerHTML = ACHIEVEMENTS.map((a, i) => {
+    const unlocked = a.condition(state);
+    return `<div class="achievement-card${unlocked ? ' unlocked' : ' locked'} pop-in" style="--delay:${i * 0.05}s">
+      <div class="achievement-icon">${a.icon}</div>
+      <div class="achievement-name">${a.name}</div>
+      <div class="achievement-desc">${a.description}</div>
+      ${unlocked ? '<div style="color:var(--accent-yellow);font-size:0.78rem;margin-top:6px;font-weight:700">🏆 Unlocked!</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function checkNewAchievements() {
+  ACHIEVEMENTS.forEach(a => {
+    const wasUnlocked = state['ach_' + a.id];
+    const isUnlocked = a.condition(state);
+    if (isUnlocked && !wasUnlocked) {
+      state['ach_' + a.id] = true;
+      saveState();
+      setTimeout(() => {
+        playSound('achievement');
+        launchConfetti();
+        showToast(`🏆 Achievement Unlocked!`, `${a.icon} ${a.name} - ${a.description}`);
+      }, 500);
+    }
+  });
+}
+
+// ==================== TOAST ====================
+function showToast(title, body) {
+  const toast = document.getElementById('toast');
+  toast.innerHTML = `<div class="toast-title">${title}</div><div class="toast-body">${body}</div>`;
+  toast.classList.remove('hidden');
+  setTimeout(() => toast.classList.add('hidden'), 4000);
+}
+
+// ==================== CONFETTI ====================
+function launchConfetti() {
+  const canvas = document.getElementById('confetti');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = [];
+  const colors = ['#7c5cfc', '#2dd4bf', '#f472b6', '#fb923c', '#fbbf24', '#34d399', '#ef5350', '#00b4d8', '#e040fb'];
+
+  for (let i = 0; i < 120; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height * 0.3 - 50,
+      w: Math.random() * 10 + 5,
+      h: Math.random() * 6 + 3,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 6,
+      vy: Math.random() * 4 + 2,
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 10,
+      life: 1,
+    });
+  }
+
+  let frame = 0;
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    particles.forEach(p => {
+      if (p.life <= 0) return;
+      alive = true;
+      p.x += p.vx;
+      p.vy += 0.1;
+      p.y += p.vy;
+      p.rotation += p.rotSpeed;
+      p.life -= 0.008;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotation * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    frame++;
+    if (alive && frame < 180) requestAnimationFrame(animate);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  animate();
+}
+
+// ==================== PARTICLES BACKGROUND ====================
+function initParticles() {
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const particles = [];
+  const count = 50;
+
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 2.5 + 0.5,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      alpha: Math.random() * 0.4 + 0.1,
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const style = getComputedStyle(document.documentElement);
+    const color = style.getPropertyValue('--primary').trim() || '#7c5cfc';
+
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0) p.x = canvas.width;
+      if (p.x > canvas.width) p.x = 0;
+      if (p.y < 0) p.y = canvas.height;
+      if (p.y > canvas.height) p.y = 0;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = p.alpha;
+      ctx.fill();
+    });
+
+    // Draw connections
+    ctx.globalAlpha = 0.06;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ==================== MULTIPLAYER ====================
+let currentDifficulty = 'easy';
+let duelTimer = null;
+let duelTimeLeft = 0;
+let duelActive = false;
+
+function selectDifficulty(diff, btn) {
+  currentDifficulty = diff;
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function showMPTab(tab, btn) {
+  document.querySelectorAll('.mp-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.mp-section').forEach(s => s.classList.add('hidden'));
+  document.getElementById('mp-' + tab).classList.remove('hidden');
+  if (btn) btn.classList.add('active');
+  else { const tabs = document.querySelectorAll('.mp-tab'); const map = {challenge:0,coop:1,tournament:2}; if (tabs[map[tab]]) tabs[map[tab]].classList.add('active'); }
+  if (tab === 'coop') renderCoopGrid();
+  if (tab === 'tournament') renderTournament();
+  if (tab === 'challenge') renderBattleStats();
+}
+
+function startDuel() {
+  const challenges = DUEL_CHALLENGES[currentDifficulty];
+  const challenge = challenges[Math.floor(Math.random() * challenges.length)];
+  const bot = DUEL_BOTS[Math.min(Math.floor(Math.random() * DUEL_BOTS.length), DUEL_BOTS.length - 1)];
+  const arena = document.getElementById('duelArena');
+  duelTimeLeft = challenge.timeLimit;
+  duelActive = true;
+
+  arena.classList.remove('hidden');
+  arena.innerHTML = `
+    <div class="duel-arena">
+      <div class="duel-header">
+        <h3>⚡ ${challenge.title}</h3>
+        <span style="font-size:0.85rem;color:var(--text-dim)">${currentDifficulty.toUpperCase()}</span>
+      </div>
+      <div class="duel-players">
+        <div class="duel-player"><div class="avatar-big">${state.avatar}</div><div class="name">${state.name || 'You'}</div></div>
+        <div style="font-size:2rem;font-weight:700;color:var(--primary)">⚔️ VS</div>
+        <div class="duel-player"><div class="avatar-big">${bot.avatar}</div><div class="name">${bot.name}</div></div>
+      </div>
+      <div class="duel-timer" id="duelTimerDisplay">${duelTimeLeft}s</div>
+      <div class="duel-challenge-box">
+        <strong>Challenge:</strong> ${challenge.description}<br>
+        <small style="color:var(--text-dim)">💡 Hint: ${challenge.hint}</small>
+      </div>
+      <textarea class="duel-code-area" id="duelCode" placeholder="# Write your Python code here..." spellcheck="false"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary" style="flex:1" onclick="submitDuel('${challenge.id}','${bot.name}',${bot.speed},${bot.accuracy})">🚀 Submit Answer</button>
+        <button class="btn" style="background:var(--danger);color:white" onclick="cancelDuel()">✖ Forfeit</button>
+      </div>
+      <div id="duelResult"></div>
+    </div>`;
+
+  clearInterval(duelTimer);
+  duelTimer = setInterval(() => {
+    duelTimeLeft--;
+    const display = document.getElementById('duelTimerDisplay');
+    if (display) display.textContent = duelTimeLeft + 's';
+    if (duelTimeLeft <= 10 && display) display.style.animation = 'pulse 0.5s infinite';
+    if (duelTimeLeft <= 0) {
+      clearInterval(duelTimer);
+      if (duelActive) submitDuel(challenge.id, bot.name, bot.speed, bot.accuracy, true);
+    }
+  }, 1000);
+  arena.scrollIntoView({ behavior: 'smooth' });
+}
+
+function submitDuel(challengeId, botName, botSpeed, botAccuracy, timedOut) {
+  if (!duelActive) return;
+  duelActive = false;
+  clearInterval(duelTimer);
+
+  const code = document.getElementById('duelCode')?.value || '';
+  const challenge = [...DUEL_CHALLENGES.easy, ...DUEL_CHALLENGES.medium, ...DUEL_CHALLENGES.hard].find(c => c.id === challengeId);
+  const timeUsed = challenge.timeLimit - duelTimeLeft;
+
+  // Bot simulation
+  const botTime = challenge.timeLimit * (1 - botSpeed) * (0.7 + Math.random() * 0.6);
+  const botCorrect = Math.random() < botAccuracy;
+
+  let playerCorrect = false;
+  if (!timedOut && code.trim()) {
+    const result = challenge.validator(code);
+    playerCorrect = result.success;
+  }
+
+  const playerWins = playerCorrect && (!botCorrect || timeUsed < botTime);
+  const resultDiv = document.getElementById('duelResult');
+
+  if (playerWins) {
+    state.duelsWon++;
+    const xpEarned = challenge.xp;
+    state.totalXP += xpEarned;
+    state.duelHistory.unshift({ vs: botName, result: 'win', challenge: challenge.title, xp: xpEarned, date: new Date().toLocaleDateString() });
+    resultDiv.innerHTML = `<div class="duel-result win">🏆 YOU WIN! +${xpEarned} XP<br><small>You: ${timeUsed}s vs ${botName}: ${Math.round(botTime)}s</small></div>`;
+    playSound('success');
+    launchConfetti();
+    showXPPopup(xpEarned);
+  } else {
+    state.duelsLost++;
+    state.duelHistory.unshift({ vs: botName, result: 'lose', challenge: challenge.title, xp: 0, date: new Date().toLocaleDateString() });
+    const reason = timedOut ? 'Time\'s up!' : !playerCorrect ? 'Incorrect answer' : `${botName} was faster`;
+    resultDiv.innerHTML = `<div class="duel-result lose">😔 ${reason}<br><small>${botName} solved it in ${Math.round(botTime)}s</small></div>`;
+    playSound('error');
+  }
+
+  if (state.duelHistory.length > 20) state.duelHistory = state.duelHistory.slice(0, 20);
+  saveState();
+  renderBattleStats();
+  renderRecentDuels();
+  checkAchievements();
+}
+
+function cancelDuel() {
+  duelActive = false;
+  clearInterval(duelTimer);
+  document.getElementById('duelArena').classList.add('hidden');
+}
+
+function renderBattleStats() {
+  const el = document.getElementById('battleStats');
+  if (!el) return;
+  const total = state.duelsWon + state.duelsLost;
+  const winRate = total > 0 ? Math.round((state.duelsWon / total) * 100) : 0;
+  el.innerHTML = `
+    <div class="battle-stat"><div class="stat-num">${state.duelsWon}</div><div class="stat-lbl">Wins</div></div>
+    <div class="battle-stat"><div class="stat-num">${state.duelsLost}</div><div class="stat-lbl">Losses</div></div>
+    <div class="battle-stat"><div class="stat-num">${winRate}%</div><div class="stat-lbl">Win Rate</div></div>
+    <div class="battle-stat"><div class="stat-num">${total}</div><div class="stat-lbl">Total Duels</div></div>`;
+}
+
+function renderRecentDuels() {
+  const el = document.getElementById('recentDuels');
+  if (!el) return;
+  if (!state.duelHistory || state.duelHistory.length === 0) {
+    el.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:16px">No duels yet. Start your first code duel!</p>';
+    return;
+  }
+  el.innerHTML = state.duelHistory.slice(0, 8).map(d => `
+    <div class="recent-duel">
+      <div><strong>${d.challenge}</strong> <span style="color:var(--text-dim);font-size:0.8rem">vs ${d.vs}</span></div>
+      <div><span class="result-badge ${d.result}">${d.result === 'win' ? '🏆 Win' : '😔 Loss'}</span></div>
+    </div>`).join('');
+}
+
+function renderCoopGrid() {
+  const el = document.getElementById('coopGrid');
+  if (!el) return;
+  el.innerHTML = COOP_PROJECTS.map(p => `
+    <div class="coop-card">
+      <div class="coop-icon">${p.icon}</div>
+      <div class="coop-title">${p.title}</div>
+      <div class="coop-desc">${p.description}</div>
+      <div class="coop-meta">
+        <span>👥 ${p.players} players</span>
+        <span>⚡ ${p.xp} XP</span>
+        <span>${p.difficulty === 'hard' ? '🔴' : '🟡'} ${p.difficulty}</span>
+      </div>
+      <button class="coop-join-btn" onclick="playSound('whoosh'); showToast('🤝 Co-op projects require multiple players. Invite friends to join!')">Join Project</button>
+    </div>`).join('');
+}
+
+function renderTournament() {
+  const info = document.getElementById('tournamentInfo');
+  const standings = document.getElementById('tournamentStandings');
+  if (!info || !standings) return;
+
+  info.innerHTML = `
+    <div class="tournament-status">
+      <div class="tournament-stat"><div class="t-val">${TOURNAMENT_DATA.rounds}</div><div class="t-lbl">Rounds</div></div>
+      <div class="tournament-stat"><div class="t-val">🥇 ${TOURNAMENT_DATA.xpPrizes.first}</div><div class="t-lbl">1st Prize XP</div></div>
+      <div class="tournament-stat"><div class="t-val">🥈 ${TOURNAMENT_DATA.xpPrizes.second}</div><div class="t-lbl">2nd Prize XP</div></div>
+      <div class="tournament-stat"><div class="t-val">🥉 ${TOURNAMENT_DATA.xpPrizes.third}</div><div class="t-lbl">3rd Prize XP</div></div>
+    </div>
+    <button class="btn btn-primary btn-lg" style="width:100%" onclick="playSound('whoosh'); showToast('🏆 Tournament starts every Monday! Complete duels to earn tournament points.')">Enter Tournament</button>`;
+
+  // Simulated standings
+  const players = [
+    ...LEADERBOARD_BOTS.slice(0, 8).map(b => ({ name: b.name, avatar: b.avatar, score: Math.floor(Math.random() * 500 + 200) })),
+    { name: state.name || 'You', avatar: state.avatar, score: state.tournamentScore || Math.floor(state.totalXP * 0.3) }
+  ].sort((a, b) => b.score - a.score);
+
+  standings.innerHTML = players.map((p, i) => {
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+    return `<div class="tournament-standing">
+      <div class="rank ${rankClass}">${medal}</div>
+      <span style="font-size:1.3rem">${p.avatar}</span>
+      <span class="t-name">${p.name}</span>
+      <span class="t-score">${p.score} pts</span>
+    </div>`;
+  }).join('');
+}
+
+// ==================== PARENT DASHBOARD ====================
+function showParentLogin() {
+  document.getElementById('parent-overlay').classList.remove('hidden');
+  document.getElementById('parentLogin').classList.remove('hidden');
+  document.getElementById('parentContent').classList.add('hidden');
+  document.getElementById('pinError').style.display = 'none';
+  document.getElementById('parentPin').value = '';
+  document.getElementById('parentPin').focus();
+}
+
+function closeParentDashboard() {
+  document.getElementById('parent-overlay').classList.add('hidden');
+}
+
+function checkParentPin() {
+  const pin = document.getElementById('parentPin').value;
+  if (pin === (state.parentPin || '1234')) {
+    document.getElementById('parentLogin').classList.add('hidden');
+    document.getElementById('parentContent').classList.remove('hidden');
+    document.getElementById('parentChildName').textContent = state.name || 'Your Child';
+    renderParentOverview();
+    renderActivityLog();
+    renderParentSettings();
+  } else {
+    document.getElementById('pinError').style.display = 'block';
+    playSound('error');
+  }
+}
+
+function showParentTab(tab, btn) {
+  document.querySelectorAll('.parent-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.parent-section').forEach(s => s.classList.add('hidden'));
+  document.getElementById('pt-' + tab).classList.remove('hidden');
+  if (btn) btn.classList.add('active');
+  else { const tabs = document.querySelectorAll('.parent-tab'); const map = {overview:0,activity:1,settings:2}; if (tabs[map[tab]]) tabs[map[tab]].classList.add('active'); }
+}
+
+function renderParentOverview() {
+  const totalLessons = WEEKS.reduce((sum, w) => sum + w.lessons.length, 0);
+  const completionPct = totalLessons > 0 ? Math.round((state.lessonsCompleted / totalLessons) * 100) : 0;
+  const totalDuels = state.duelsWon + state.duelsLost;
+  const avgXPperDay = Object.keys(state.dailyLog || {}).length > 0
+    ? Math.round(state.totalXP / Object.keys(state.dailyLog).length) : 0;
+
+  document.getElementById('parentStats').innerHTML = `
+    <div class="parent-stat-card"><div class="ps-icon">⚡</div><div class="ps-value">${state.totalXP}</div><div class="ps-label">Total XP Earned</div></div>
+    <div class="parent-stat-card"><div class="ps-icon">✅</div><div class="ps-value">${state.lessonsCompleted}/${totalLessons}</div><div class="ps-label">Lessons Completed</div></div>
+    <div class="parent-stat-card"><div class="ps-icon">📊</div><div class="ps-value">${completionPct}%</div><div class="ps-label">Course Progress</div></div>
+    <div class="parent-stat-card"><div class="ps-icon">🔥</div><div class="ps-value">${state.streak}</div><div class="ps-label">Current Streak</div></div>
+    <div class="parent-stat-card"><div class="ps-icon">🏗️</div><div class="ps-value">${state.projectsCompleted}</div><div class="ps-label">Projects Built</div></div>
+    <div class="parent-stat-card"><div class="ps-icon">⚔️</div><div class="ps-value">${state.duelsWon}/${totalDuels}</div><div class="ps-label">Duels Won</div></div>`;
+
+  // Weekly chart
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const today = new Date();
+  const weekData = days.map((d, i) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - today.getDay() + i + 1);
+    const key = date.toDateString();
+    return { day: d, xp: (state.dailyLog && state.dailyLog[key]) ? state.dailyLog[key].xp || 0 : 0 };
+  });
+  const maxXP = Math.max(...weekData.map(d => d.xp), 1);
+  document.getElementById('parentWeeklyChart').innerHTML = `
+    <div class="weekly-chart">${weekData.map(d => `
+      <div class="bar-col">
+        <div class="bar-value">${d.xp}</div>
+        <div class="bar" style="height:${(d.xp / maxXP) * 120}px"></div>
+        <div class="bar-label">${d.day}</div>
+      </div>`).join('')}
+    </div>`;
+
+  // Skills breakdown
+  const skills = [
+    { name: 'Basics (Variables, Print)', pct: Math.min(100, state.lessonsCompleted >= 5 ? 100 : state.lessonsCompleted * 20), color: '#6366f1' },
+    { name: 'Logic (Loops, Conditions)', pct: Math.min(100, Math.max(0, (state.lessonsCompleted - 5) * 20)), color: '#10b981' },
+    { name: 'Functions & Data', pct: Math.min(100, Math.max(0, (state.lessonsCompleted - 10) * 20)), color: '#f59e0b' },
+    { name: 'OOP & Classes', pct: Math.min(100, Math.max(0, (state.lessonsCompleted - 25) * 20)), color: '#ef4444' },
+    { name: 'Algorithms', pct: Math.min(100, Math.max(0, (state.lessonsCompleted - 30) * 20)), color: '#8b5cf6' },
+    { name: 'AI Concepts', pct: Math.min(100, Math.max(0, (state.lessonsCompleted - 35) * 20)), color: '#06b6d4' },
+  ];
+  document.getElementById('parentSkills').innerHTML = skills.map(s => `
+    <div class="skills-bar">
+      <div class="skill-name"><span>${s.name}</span><span>${s.pct}%</span></div>
+      <div class="skill-track"><div class="skill-fill" style="width:${s.pct}%;background:${s.color}"></div></div>
+    </div>`).join('');
+
+  // Recommendations
+  const recs = [];
+  if (state.streak < 3) recs.push('💡 Encourage daily practice to build a coding streak!');
+  if (state.lessonsCompleted < 10) recs.push('📚 Focus on completing the foundational lessons in Weeks 1-2.');
+  if (state.projectsCompleted < 2) recs.push('🏗️ Try the guided projects to apply learned concepts.');
+  if (state.duelsWon + state.duelsLost === 0) recs.push('⚔️ The Battle Arena is a fun way to practice under time pressure!');
+  if (completionPct > 50) recs.push('🌟 Great progress! Your child is ahead of schedule.');
+  if (recs.length === 0) recs.push('🏆 Amazing work! Keep up the excellent coding journey!');
+  document.getElementById('parentRecommendations').innerHTML = `<div class="parent-recommendations">${recs.map(r => `<div class="rec-item">${r}</div>`).join('')}</div>`;
+}
+
+function renderActivityLog() {
+  const el = document.getElementById('parentActivityLog');
+  if (!el) return;
+  const log = state.dailyLog || {};
+  const dates = Object.keys(log).sort((a, b) => new Date(b) - new Date(a)).slice(0, 14);
+  if (dates.length === 0) {
+    el.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:20px">No activity recorded yet. Activity will appear here as your child completes lessons.</p>';
+    return;
+  }
+  el.innerHTML = dates.map(d => {
+    const entry = log[d];
+    return `<div class="activity-day">
+      <div class="day-date">${d}</div>
+      <div class="day-details">${entry.lessons || 0} lessons · ${entry.challenges || 0} challenges</div>
+      <div class="day-xp">+${entry.xp || 0} XP</div>
+    </div>`;
+  }).join('');
+}
+
+function renderParentSettings() {
+  const el = document.getElementById('parentSettingsForm');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="setting-item">
+      <div><div class="setting-label">Daily Time Limit</div><div class="setting-desc">Set a daily time limit (0 = unlimited)</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" id="timeLimitInput" value="${state.dailyTimeLimit || 0}" min="0" max="480" step="15">
+        <span style="font-size:0.85rem;color:var(--text-dim)">min</span>
+      </div>
+    </div>
+    <div class="setting-item">
+      <div><div class="setting-label">Change PIN</div><div class="setting-desc">Update your parent dashboard PIN</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="password" id="newPinInput" placeholder="New PIN" maxlength="4" style="width:100px">
+      </div>
+    </div>
+    <div class="setting-item">
+      <div><div class="setting-label">Sound Effects</div><div class="setting-desc">Enable/disable app sounds</div></div>
+      <button class="toggle-switch ${soundEnabled ? 'on' : ''}" onclick="toggleSound(); this.classList.toggle('on')"></button>
+    </div>
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" onclick="saveParentSettings()">💾 Save Settings</button>
+    </div>`;
+}
+
+function saveParentSettings() {
+  const timeLimit = parseInt(document.getElementById('timeLimitInput')?.value || '0');
+  const newPin = document.getElementById('newPinInput')?.value;
+  state.dailyTimeLimit = Math.max(0, Math.min(480, timeLimit));
+  if (newPin && newPin.length === 4 && /^\d{4}$/.test(newPin)) {
+    state.parentPin = newPin;
+    showToast('🔐 PIN updated successfully!');
+  }
+  saveState();
+  showToast('✅ Settings saved!');
+}
