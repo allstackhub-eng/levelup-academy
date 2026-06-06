@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="cosmic">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LevelUp Academy - Code Your Future, One Level at a Time</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Animated Background Particles -->
+  <canvas id="particles"></canvas>
+
+  <div id="app">
+    <!-- Sidebar Navigation -->
+    <nav id="sidebar">
+      <div class="logo">
+        <span class="logo-icon bounce-in">🚀</span>
+        <h1>LevelUp<br>Academy</h1>
+      </div>
+      <div class="nav-links">
+        <button class="nav-btn active" data-page="dashboard" onclick="playSound('click'); showPage('dashboard')">
+          <span class="nav-icon">🏠</span> <span class="nav-text">Dashboard</span>
+        </button>
+        <button class="nav-btn" data-page="lessons" onclick="playSound('click'); showPage('lessons')">
+          <span class="nav-icon">📚</span> <span class="nav-text">Lessons</span>
+        </button>
+        <button class="nav-btn" data-page="playground" onclick="playSound('click'); showPage('playground')">
+          <span class="nav-icon">🎮</span> <span class="nav-text">Code Lab</span>
+        </button>
+        <button class="nav-btn" data-page="projects" onclick="playSound('click'); showPage('projects')">
+          <span class="nav-icon">🚀</span> <span class="nav-text">Projects</span>
+        </button>
+        <button class="nav-btn" data-page="multiplayer" onclick="playSound('click'); showPage('multiplayer')">
+          <span class="nav-icon">⚔️</span> <span class="nav-text">Battle Arena</span>
+        </button>
+        <button class="nav-btn" data-page="leaderboard" onclick="playSound('click'); showPage('leaderboard')">
+          <span class="nav-icon">👑</span> <span class="nav-text">Leaderboard</span>
+        </button>
+        <button class="nav-btn" data-page="achievements" onclick="playSound('click'); showPage('achievements')">
+          <span class="nav-icon">🏆</span> <span class="nav-text">Trophies</span>
+        </button>
+      </div>
+      <div class="sidebar-footer">
+        <button class="theme-toggle-btn" onclick="playSound('click'); toggleThemePicker()" title="Change Theme">
+          🎨 <span class="nav-text">Theme</span>
+        </button>
+        <button class="theme-toggle-btn" onclick="playSound('click'); showParentLogin()" title="Parent Dashboard">
+          👨‍👩‍👧 <span class="nav-text">Parent</span>
+        </button>
+        <button class="sound-toggle-btn" id="soundToggle" onclick="toggleSound()" title="Toggle Sound">
+          🔊 <span class="nav-text">Sound</span>
+        </button>
+        <div class="player-info">
+          <div class="avatar" id="playerAvatar">🧑‍💻</div>
+          <div>
+            <div class="player-name" id="playerName">Young Coder</div>
+            <div class="player-level" id="playerLevel">Level 1 - Apprentice</div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Theme Picker Panel -->
+    <div id="themePicker" class="theme-picker hidden">
+      <h3>🎨 Pick Your Theme</h3>
+      <div class="theme-grid" id="themeGrid"></div>
+    </div>
+
+    <!-- Main Content -->
+    <main id="content">
+      <!-- Dashboard Page -->
+      <div id="page-dashboard" class="page active">
+        <header class="page-header">
+          <h2 class="wiggle-text">Welcome back, <span id="dashName">Young Coder</span>! <span class="sparkle">🌟</span></h2>
+          <p class="subtitle">Code Your Future, One Level at a Time</p>
+        </header>
+
+        <div class="stats-grid">
+          <div class="stat-card xp-card pop-in" style="--delay:0.1s">
+            <div class="stat-icon pulse">⚡</div>
+            <div class="stat-info">
+              <div class="stat-value" id="totalXP">0</div>
+              <div class="stat-label">Total XP</div>
+            </div>
+          </div>
+          <div class="stat-card streak-card pop-in" style="--delay:0.2s">
+            <div class="stat-icon pulse">🔥</div>
+            <div class="stat-info">
+              <div class="stat-value" id="streak">0</div>
+              <div class="stat-label">Day Streak</div>
+            </div>
+          </div>
+          <div class="stat-card lessons-card pop-in" style="--delay:0.3s">
+            <div class="stat-icon pulse">✅</div>
+            <div class="stat-info">
+              <div class="stat-value" id="lessonsCompleted">0</div>
+              <div class="stat-label">Lessons Done</div>
+            </div>
+          </div>
+          <div class="stat-card projects-card pop-in" style="--delay:0.4s">
+            <div class="stat-icon pulse">🏗️</div>
+            <div class="stat-info">
+              <div class="stat-value" id="projectsCompleted">0</div>
+              <div class="stat-label">Projects Built</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Level Progress -->
+        <div class="card level-progress-card glow-card">
+          <h3>⬆️ Level Progress</h3>
+          <div class="level-bar-container">
+            <div class="level-label-left" id="currentLevelLabel">Apprentice</div>
+            <div class="level-bar">
+              <div class="level-fill" id="levelFill" style="width: 0%">
+                <div class="level-fill-shine"></div>
+              </div>
+            </div>
+            <div class="level-label-right" id="nextLevelLabel">Explorer</div>
+          </div>
+          <p class="level-hint" id="levelHint">Earn 100 XP to reach the next level!</p>
+        </div>
+
+        <!-- Weekly Activity -->
+        <div class="card">
+          <h3>📅 This Week's Activity</h3>
+          <div class="week-grid" id="weekGrid"></div>
+        </div>
+
+        <!-- Daily Quest -->
+        <div class="card daily-quest-card glow-card">
+          <h3>🎯 Today's Quest</h3>
+          <div id="dailyQuest"></div>
+        </div>
+
+        <!-- Recommended Next -->
+        <div class="card">
+          <h3>📖 Continue Learning</h3>
+          <div id="recommendedLesson"></div>
+        </div>
+      </div>
+
+      <!-- Lessons Page -->
+      <div id="page-lessons" class="page">
+        <header class="page-header">
+          <h2>Python Lessons 🐍</h2>
+          <p class="subtitle">Learn to code step by step</p>
+        </header>
+        <div class="week-tabs" id="weekTabs"></div>
+        <div class="lessons-list" id="lessonsList"></div>
+      </div>
+
+      <!-- Code Playground Page -->
+      <div id="page-playground" class="page">
+        <header class="page-header">
+          <h2>Code Lab 🎮</h2>
+          <p class="subtitle">Write and run Python code</p>
+        </header>
+        <div id="playgroundContent"></div>
+      </div>
+
+      <!-- Projects Page -->
+      <div id="page-projects" class="page">
+        <header class="page-header">
+          <h2>Projects 🚀</h2>
+          <p class="subtitle">Build cool things with what you've learned</p>
+        </header>
+        <div class="projects-grid" id="projectsGrid"></div>
+      </div>
+
+      <!-- Leaderboard Page -->
+      <div id="page-leaderboard" class="page">
+        <header class="page-header">
+          <h2>Leaderboard 👑</h2>
+          <p class="subtitle">See how you rank among fellow coders!</p>
+        </header>
+        <div class="leaderboard-container">
+          <div class="leaderboard-podium" id="podium"></div>
+          <div class="leaderboard-table" id="leaderboardTable"></div>
+        </div>
+      </div>
+
+      <!-- Achievements Page -->
+      <div id="page-achievements" class="page">
+        <header class="page-header">
+          <h2>Trophies 🏆</h2>
+          <p class="subtitle">Collect them all!</p>
+        </header>
+        <div class="achievements-grid" id="achievementsGrid"></div>
+      </div>
+
+      <!-- Multiplayer / Battle Arena Page -->
+      <div id="page-multiplayer" class="page">
+        <header class="page-header">
+          <h2>Battle Arena ⚔️</h2>
+          <p class="subtitle">Challenge friends and bots to coding duels!</p>
+        </header>
+        <div class="mp-tabs">
+          <button class="mp-tab active" onclick="showMPTab('challenge', this)">⚔️ Code Duels</button>
+          <button class="mp-tab" onclick="showMPTab('coop', this)">🤝 Co-op Projects</button>
+          <button class="mp-tab" onclick="showMPTab('tournament', this)">🏆 Tournaments</button>
+        </div>
+        <div id="mp-challenge" class="mp-section">
+          <div class="card glow-card">
+            <h3>⚡ Quick Challenge</h3>
+            <p style="color:var(--text-dim);margin-bottom:16px">Race against a bot to solve a coding challenge. Fastest correct answer wins!</p>
+            <div class="difficulty-select">
+              <button class="diff-btn active" onclick="selectDifficulty('easy', this)">🟢 Easy</button>
+              <button class="diff-btn" onclick="selectDifficulty('medium', this)">🟡 Medium</button>
+              <button class="diff-btn" onclick="selectDifficulty('hard', this)">🔴 Hard</button>
+            </div>
+            <button class="btn btn-primary btn-lg" style="width:100%;margin-top:16px" onclick="playSound('whoosh'); startDuel()">🎯 Start Code Duel!</button>
+          </div>
+          <div id="duelArena" class="hidden"></div>
+          <div class="card" style="margin-top:16px">
+            <h3>📊 Your Battle Stats</h3>
+            <div class="battle-stats" id="battleStats"></div>
+          </div>
+          <div class="card">
+            <h3>🕐 Recent Duels</h3>
+            <div id="recentDuels"></div>
+          </div>
+        </div>
+        <div id="mp-coop" class="mp-section hidden">
+          <div class="coop-grid" id="coopGrid"></div>
+        </div>
+        <div id="mp-tournament" class="mp-section hidden">
+          <div class="card glow-card">
+            <h3>🏆 Weekly Tournament</h3>
+            <p style="color:var(--text-dim);margin-bottom:12px">Compete in this week's coding challenge! Top 3 earn bonus XP and a special badge.</p>
+            <div id="tournamentInfo"></div>
+          </div>
+          <div class="card">
+            <h3>📋 Tournament Standings</h3>
+            <div id="tournamentStandings"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parent Dashboard (overlay) -->
+      <div id="parent-overlay" class="overlay hidden">
+        <div class="overlay-content parent-dashboard" style="max-width:950px">
+          <button class="close-btn" onclick="closeParentDashboard()">&times;</button>
+          <div id="parentLogin" class="">
+            <div style="text-align:center;padding:40px 0">
+              <div style="font-size:3rem;margin-bottom:12px">👨‍👩‍👧‍👦</div>
+              <h2>Parent Dashboard</h2>
+              <p style="color:var(--text-dim);margin-bottom:20px">Enter your PIN to access progress reports</p>
+              <input type="password" id="parentPin" placeholder="Enter 4-digit PIN" maxlength="4"
+                style="width:200px;text-align:center;padding:14px;font-size:1.3rem;letter-spacing:8px;background:var(--bg-card);border:2px solid var(--border);border-radius:12px;color:var(--text);font-family:var(--font-main)">
+              <p id="pinError" style="color:var(--danger);font-size:0.85rem;margin-top:8px;display:none">Incorrect PIN. Try again.</p>
+              <div style="margin-top:16px">
+                <button class="btn btn-primary btn-lg" onclick="checkParentPin()">Enter</button>
+              </div>
+              <p style="color:var(--text-dim);font-size:0.8rem;margin-top:16px" id="pinSetupMsg">Default PIN: 1234. Change it in settings below after login.</p>
+            </div>
+          </div>
+          <div id="parentContent" class="hidden">
+            <div class="parent-header">
+              <h2>👨‍👩‍👧‍👦 Parent Dashboard</h2>
+              <p style="color:var(--text-dim)">Monitor <span id="parentChildName"></span>'s coding journey</p>
+            </div>
+            <div class="parent-tabs">
+              <button class="parent-tab active" onclick="showParentTab('overview', this)">📊 Overview</button>
+              <button class="parent-tab" onclick="showParentTab('activity', this)">📅 Activity Log</button>
+              <button class="parent-tab" onclick="showParentTab('settings', this)">⚙️ Settings</button>
+            </div>
+            <div id="pt-overview" class="parent-section">
+              <div class="parent-stats-grid" id="parentStats"></div>
+              <div class="card"><h3>📈 Weekly Progress</h3><div id="parentWeeklyChart"></div></div>
+              <div class="card"><h3>🧠 Skills Breakdown</h3><div id="parentSkills"></div></div>
+              <div class="card"><h3>💡 Recommendations</h3><div id="parentRecommendations"></div></div>
+            </div>
+            <div id="pt-activity" class="parent-section hidden">
+              <div class="card"><h3>📅 Daily Activity Log</h3><div id="parentActivityLog"></div></div>
+            </div>
+            <div id="pt-settings" class="parent-section hidden">
+              <div class="card">
+                <h3>⚙️ Parental Controls</h3>
+                <div class="settings-form" id="parentSettingsForm"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lesson Detail (overlay) -->
+      <div id="lesson-overlay" class="overlay hidden">
+        <div class="overlay-content">
+          <button class="close-btn" onclick="playSound('click'); closeLessonOverlay()">&times;</button>
+          <div id="lessonDetail"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Onboarding Modal -->
+  <div id="onboarding-modal" class="modal hidden">
+    <div class="modal-content onboarding">
+      <div class="onboarding-mascot bounce-in">🚀</div>
+      <h2>Welcome to LevelUp Academy!</h2>
+      <p class="onboarding-sub">Code Your Future, One Level at a Time</p>
+      <label class="input-label">What should we call you?</label>
+      <input type="text" id="nameInput" placeholder="Enter your coder name..." maxlength="20">
+      <label class="input-label">Pick your avatar:</label>
+      <div class="avatar-picker" id="avatarPicker"></div>
+      <label class="input-label">Choose your theme:</label>
+      <div class="theme-picker-inline" id="onboardingThemes"></div>
+      <button class="btn btn-primary btn-lg btn-glow" onclick="playSound('levelUp'); completeOnboarding()">Start My Adventure! 🚀</button>
+    </div>
+  </div>
+
+  <!-- XP Popup -->
+  <div id="xp-popup" class="xp-popup hidden"></div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confetti" class="confetti-canvas"></canvas>
+
+  <script src="data.js"></script>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
