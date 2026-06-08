@@ -17,6 +17,9 @@ let state = {
   lastVisit: null,
   dailyLog: {},
   onboarded: false,
+  quizzesPassed: [],
+  challengesPassed: [],
+  assignmentsDone: [],
   duelsWon: 0,
   duelsLost: 0,
   duelHistory: [],
@@ -312,42 +315,208 @@ function renderLessons(weekId) {
 }
 
 // ==================== LESSON DETAIL ====================
+let currentLessonTab = 'learn';
+
 function openLesson(lessonId) {
   let lesson = null;
   for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
   if (!lesson) return;
   playSound('whoosh');
+  currentLessonTab = 'learn';
+  renderLessonDetail(lesson);
+  document.getElementById('lesson-overlay').classList.remove('hidden');
+}
 
+function renderLessonDetail(lesson) {
   const detail = document.getElementById('lessonDetail');
   const completed = state.completedLessons.includes(lesson.id);
+  const quizPassed = state.quizzesPassed && state.quizzesPassed.includes(lesson.id);
+  const challengePassed = state.challengesPassed && state.challengesPassed.includes(lesson.id);
+  const hasAssignments = lesson.assignments && lesson.assignments.length > 0;
+  const hasQuiz = lesson.quiz && lesson.quiz.length > 0;
+  const hasResources = lesson.resources && lesson.resources.length > 0;
 
   detail.innerHTML = `
     <h2>${lesson.title}</h2>
-    <div class="lesson-meta" style="margin-bottom:20px">
+    <div class="lesson-meta" style="margin-bottom:16px">
       ${lesson.tags.map(t => `<span class="lesson-tag">${t}</span>`).join('')}
       <span class="lesson-xp-badge">⚡ ${lesson.xp} XP</span>
       ${completed ? '<span style="color:var(--success);font-size:0.85rem;font-weight:700">✅ Completed</span>' : ''}
     </div>
-    <div class="lesson-content">${lesson.content}</div>
-    ${lesson.challenge ? `
-      <div class="challenge-area">
-        <h4>🎯 Challenge</h4>
-        <div class="challenge-prompt">${lesson.challenge.prompt}</div>
-        <p style="font-size:0.8rem;color:var(--text-dim)">💡 Hint: ${lesson.challenge.hint}</p>
-        <textarea class="code-input" id="challengeCode" placeholder="Write your Python code here..." spellcheck="false"></textarea>
-        <div class="challenge-actions">
-          <button class="btn btn-primary" onclick="playSound('click'); checkChallenge('${lesson.id}')">▶️ Check My Code</button>
-          <button class="btn btn-secondary" onclick="playSound('click'); document.getElementById('challengeCode').value = ''">🗑️ Clear</button>
-        </div>
-        <div class="output-area" id="challengeOutput"></div>
-      </div>
-    ` : ''}
-    ${!completed ? `<button class="btn btn-success btn-lg" style="margin-top:20px;width:100%" onclick="completeLesson('${lesson.id}', ${lesson.xp})">
-      ✅ Mark as Complete (+${lesson.xp} XP)
-    </button>` : ''}
-  `;
 
-  document.getElementById('lesson-overlay').classList.remove('hidden');
+    <div class="lesson-tabs">
+      <button class="lesson-tab ${currentLessonTab === 'learn' ? 'active' : ''}" onclick="switchLessonTab('learn', '${lesson.id}')">📖 Learn</button>
+      <button class="lesson-tab ${currentLessonTab === 'practice' ? 'active' : ''}" onclick="switchLessonTab('practice', '${lesson.id}')">💻 Practice ${challengePassed ? '✅' : ''}</button>
+      ${hasQuiz ? `<button class="lesson-tab ${currentLessonTab === 'quiz' ? 'active' : ''}" onclick="switchLessonTab('quiz', '${lesson.id}')">📝 Quiz ${quizPassed ? '✅' : '🔒'}</button>` : ''}
+      ${hasResources ? `<button class="lesson-tab ${currentLessonTab === 'resources' ? 'active' : ''}" onclick="switchLessonTab('resources', '${lesson.id}')">📚 Deep Dive</button>` : ''}
+    </div>
+
+    <div id="lessonTabContent"></div>
+  `;
+  renderLessonTabContent(lesson);
+}
+
+function switchLessonTab(tab, lessonId) {
+  let lesson = null;
+  for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
+  if (!lesson) return;
+  currentLessonTab = tab;
+  playSound('click');
+  // Update tab active state
+  document.querySelectorAll('.lesson-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderLessonTabContent(lesson);
+}
+
+function renderLessonTabContent(lesson) {
+  const container = document.getElementById('lessonTabContent');
+  if (!container) return;
+  const completed = state.completedLessons.includes(lesson.id);
+  const quizPassed = state.quizzesPassed && state.quizzesPassed.includes(lesson.id);
+  const challengePassed = state.challengesPassed && state.challengesPassed.includes(lesson.id);
+
+  switch (currentLessonTab) {
+    case 'learn':
+      container.innerHTML = `
+        <div class="lesson-content">${lesson.content}</div>
+        <div style="margin-top:20px;text-align:center">
+          <button class="btn btn-primary btn-lg" onclick="switchLessonTab('practice', '${lesson.id}')" style="min-width:200px">
+            💻 Go to Practice →
+          </button>
+        </div>`;
+      break;
+
+    case 'practice':
+      const assignmentsHTML = (lesson.assignments || []).map((a, i) => {
+        const assignDone = state.assignmentsDone && state.assignmentsDone.includes(lesson.id + '_a' + i);
+        return `
+        <div class="assignment-card ${assignDone ? 'done' : ''}">
+          <div class="assignment-header">
+            <span class="assignment-num">${assignDone ? '✅' : '📝'} Assignment ${i + 1}</span>
+            <span class="assignment-diff ${a.difficulty || 'medium'}">${a.difficulty || 'medium'}</span>
+          </div>
+          <div class="assignment-prompt">${a.prompt}</div>
+          ${a.hint ? `<p class="assignment-hint">💡 Hint: ${a.hint}</p>` : ''}
+          <textarea class="code-input" id="assignCode${i}" placeholder="# Write your solution here..." spellcheck="false">${assignDone ? '# Already completed ✅' : ''}</textarea>
+          <div class="challenge-actions">
+            <button class="btn btn-primary" onclick="playSound('click'); checkAssignment('${lesson.id}', ${i})">▶️ Check Code</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('assignCode${i}').value=''">🗑️ Clear</button>
+          </div>
+          <div class="output-area" id="assignOutput${i}"></div>
+        </div>`;
+      }).join('');
+
+      container.innerHTML = `
+        ${lesson.challenge ? `
+          <div class="challenge-area main-challenge">
+            <h4>🎯 Main Challenge ${challengePassed ? '<span style="color:var(--success)">✅ Passed</span>' : '<span style="color:var(--danger)">(Required)</span>'}</h4>
+            <div class="challenge-prompt">${lesson.challenge.prompt}</div>
+            <p style="font-size:0.8rem;color:var(--text-dim)">💡 Hint: ${lesson.challenge.hint}</p>
+            <textarea class="code-input" id="challengeCode" placeholder="# Write your Python code here..." spellcheck="false"></textarea>
+            <div class="challenge-actions">
+              <button class="btn btn-primary" onclick="playSound('click'); checkChallenge('${lesson.id}')">▶️ Check My Code</button>
+              <button class="btn btn-secondary" onclick="document.getElementById('challengeCode').value=''">🗑️ Clear</button>
+            </div>
+            <div class="output-area" id="challengeOutput"></div>
+          </div>
+        ` : ''}
+        ${assignmentsHTML ? `
+          <div class="assignments-section">
+            <h4 style="margin-bottom:12px">📋 Extra Assignments</h4>
+            <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px">Practice makes perfect! Complete these for bonus XP.</p>
+            ${assignmentsHTML}
+          </div>
+        ` : ''}
+        ${challengePassed && lesson.quiz && lesson.quiz.length > 0 ? `
+          <div style="margin-top:20px;text-align:center">
+            <button class="btn btn-primary btn-lg" onclick="switchLessonTab('quiz', '${lesson.id}')" style="min-width:200px">
+              📝 Take the Quiz →
+            </button>
+          </div>
+        ` : !challengePassed ? `
+          <div class="quiz-gate-msg">
+            <span>🔒</span> Pass the Main Challenge above to unlock the Quiz
+          </div>
+        ` : ''}`;
+      break;
+
+    case 'quiz':
+      if (!lesson.quiz || lesson.quiz.length === 0) { container.innerHTML = '<p>No quiz for this lesson.</p>'; break; }
+      if (!(state.challengesPassed && state.challengesPassed.includes(lesson.id))) {
+        container.innerHTML = `<div class="quiz-gate-msg"><span>🔒</span> Complete the Main Challenge in Practice tab first to unlock the quiz.</div>`;
+        break;
+      }
+      if (quizPassed) {
+        container.innerHTML = `
+          <div class="quiz-passed-banner">🎉 Quiz Passed! You've mastered this lesson.</div>
+          ${renderQuizReview(lesson)}
+          ${!completed ? `<button class="btn btn-success btn-lg" style="margin-top:20px;width:100%" onclick="completeLesson('${lesson.id}', ${lesson.xp})">
+            ✅ Complete Lesson (+${lesson.xp} XP)
+          </button>` : ''}`;
+        break;
+      }
+      container.innerHTML = `
+        <div class="quiz-container">
+          <div class="quiz-header">
+            <h4>📝 Lesson Quiz</h4>
+            <p style="color:var(--text-dim);font-size:0.85rem">You need to score at least ${Math.ceil(lesson.quiz.length * 0.7)}/${lesson.quiz.length} to pass. Choose carefully!</p>
+          </div>
+          <form id="quizForm">
+            ${lesson.quiz.map((q, i) => `
+              <div class="quiz-question">
+                <div class="quiz-q-num">Question ${i + 1} of ${lesson.quiz.length}</div>
+                <div class="quiz-q-text">${q.question}</div>
+                <div class="quiz-options">
+                  ${q.options.map((opt, j) => `
+                    <label class="quiz-option">
+                      <input type="radio" name="q${i}" value="${j}">
+                      <span class="quiz-option-text">${opt}</span>
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('')}
+          </form>
+          <button class="btn btn-primary btn-lg" style="width:100%;margin-top:16px" onclick="playSound('click'); submitQuiz('${lesson.id}')">
+            📝 Submit Quiz
+          </button>
+          <div id="quizResult"></div>
+        </div>`;
+      break;
+
+    case 'resources':
+      if (!lesson.resources || lesson.resources.length === 0) { container.innerHTML = '<p>No resources yet.</p>'; break; }
+      container.innerHTML = `
+        <div class="resources-section">
+          <h4 style="margin-bottom:8px">📚 Deep Dive Resources</h4>
+          <p style="color:var(--text-dim);font-size:0.85rem;margin-bottom:16px">Explore these links to master this topic beyond the lesson.</p>
+          ${lesson.resources.map(r => `
+            <a href="${r.url}" target="_blank" rel="noopener noreferrer" class="resource-card">
+              <div class="resource-icon">${r.icon || '🔗'}</div>
+              <div class="resource-info">
+                <div class="resource-title">${r.title}</div>
+                <div class="resource-desc">${r.description}</div>
+                <div class="resource-url">${r.url}</div>
+              </div>
+              <div class="resource-arrow">↗</div>
+            </a>
+          `).join('')}
+        </div>`;
+      break;
+  }
+}
+
+function renderQuizReview(lesson) {
+  return `<div class="quiz-review">
+    <h4 style="margin-bottom:12px">📋 Answer Key</h4>
+    ${lesson.quiz.map((q, i) => `
+      <div class="quiz-review-q">
+        <strong>Q${i+1}:</strong> ${q.question}<br>
+        <span style="color:var(--success)">✅ ${q.options[q.correct]}</span>
+        ${q.explanation ? `<br><span style="color:var(--text-dim);font-size:0.85rem">💡 ${q.explanation}</span>` : ''}
+      </div>
+    `).join('')}
+  </div>`;
 }
 
 function closeLessonOverlay() {
@@ -371,7 +540,46 @@ function checkChallenge(lessonId) {
   const result = lesson.challenge.validator(code);
   if (result.success) {
     output.innerHTML = `<span class="output-success">${result.message}</span>`;
+    if (!state.challengesPassed) state.challengesPassed = [];
+    if (!state.challengesPassed.includes(lessonId)) {
+      state.challengesPassed.push(lessonId);
+    }
     state.todayChallenges++;
+    saveState();
+    playSound('success');
+    // Re-render to show unlocked quiz
+    setTimeout(() => renderLessonTabContent(lesson), 800);
+  } else {
+    output.innerHTML = `<span class="output-error">${result.message}</span>`;
+    playSound('error');
+  }
+}
+
+function checkAssignment(lessonId, assignIndex) {
+  let lesson = null;
+  for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
+  if (!lesson || !lesson.assignments || !lesson.assignments[assignIndex]) return;
+
+  const code = document.getElementById('assignCode' + assignIndex)?.value || '';
+  const output = document.getElementById('assignOutput' + assignIndex);
+
+  if (!code.trim()) {
+    output.innerHTML = '<span class="output-error">Write some code first!</span>';
+    playSound('error');
+    return;
+  }
+
+  const assignment = lesson.assignments[assignIndex];
+  const result = assignment.validator(code);
+  if (result.success) {
+    output.innerHTML = `<span class="output-success">${result.message}</span>`;
+    if (!state.assignmentsDone) state.assignmentsDone = [];
+    const key = lessonId + '_a' + assignIndex;
+    if (!state.assignmentsDone.includes(key)) {
+      state.assignmentsDone.push(key);
+      state.totalXP += (assignment.xp || 5);
+      showXPPopup('+' + (assignment.xp || 5) + ' XP');
+    }
     saveState();
     playSound('success');
   } else {
@@ -380,8 +588,93 @@ function checkChallenge(lessonId) {
   }
 }
 
+function submitQuiz(lessonId) {
+  let lesson = null;
+  for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
+  if (!lesson || !lesson.quiz) return;
+
+  const form = document.getElementById('quizForm');
+  let correct = 0;
+  let unanswered = false;
+
+  lesson.quiz.forEach((q, i) => {
+    const selected = form.querySelector(`input[name="q${i}"]:checked`);
+    const questionDiv = form.querySelectorAll('.quiz-question')[i];
+    if (!selected) {
+      unanswered = true;
+      questionDiv.classList.add('quiz-unanswered');
+      return;
+    }
+    questionDiv.classList.remove('quiz-unanswered');
+    const val = parseInt(selected.value);
+    const options = questionDiv.querySelectorAll('.quiz-option');
+    if (val === q.correct) {
+      correct++;
+      options[val].classList.add('quiz-correct');
+    } else {
+      options[val].classList.add('quiz-wrong');
+      options[q.correct].classList.add('quiz-correct');
+    }
+    // Disable all inputs after submit
+    questionDiv.querySelectorAll('input').forEach(inp => inp.disabled = true);
+  });
+
+  if (unanswered) {
+    document.getElementById('quizResult').innerHTML = '<div class="quiz-result-msg warn">⚠️ Please answer all questions before submitting.</div>';
+    playSound('error');
+    return;
+  }
+
+  const total = lesson.quiz.length;
+  const passing = Math.ceil(total * 0.7);
+  const passed = correct >= passing;
+  const resultDiv = document.getElementById('quizResult');
+
+  if (passed) {
+    if (!state.quizzesPassed) state.quizzesPassed = [];
+    if (!state.quizzesPassed.includes(lessonId)) {
+      state.quizzesPassed.push(lessonId);
+      const bonusXP = 10;
+      state.totalXP += bonusXP;
+      showXPPopup('+' + bonusXP + ' Quiz Bonus!');
+    }
+    saveState();
+    playSound('achievement');
+    launchConfetti();
+    resultDiv.innerHTML = `
+      <div class="quiz-result-msg success">
+        🎉 Quiz Passed! ${correct}/${total} correct!
+        <br><small>You can now complete this lesson.</small>
+      </div>
+      <button class="btn btn-success btn-lg" style="width:100%;margin-top:12px" onclick="completeLesson('${lessonId}', ${lesson.xp})">
+        ✅ Complete Lesson (+${lesson.xp} XP)
+      </button>`;
+  } else {
+    playSound('error');
+    resultDiv.innerHTML = `
+      <div class="quiz-result-msg fail">
+        😔 Score: ${correct}/${total}. Need at least ${passing} to pass.
+        <br><small>Review the lesson and try again!</small>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="switchLessonTab('quiz', '${lessonId}')">
+        🔄 Retake Quiz
+      </button>`;
+  }
+}
+
 function completeLesson(lessonId, xp) {
   if (state.completedLessons.includes(lessonId)) return;
+
+  // Must pass quiz if lesson has one
+  let lesson = null;
+  for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
+  if (lesson && lesson.quiz && lesson.quiz.length > 0) {
+    if (!state.quizzesPassed || !state.quizzesPassed.includes(lessonId)) {
+      showToast('🔒 Quiz Required', 'Pass the quiz before completing this lesson.');
+      playSound('error');
+      return;
+    }
+  }
 
   state.completedLessons.push(lessonId);
   state.lessonsCompleted++;
@@ -395,7 +688,10 @@ function completeLesson(lessonId, xp) {
     state.weekComplete[weekNum] = true;
   }
 
-  state.dailyLog[new Date().toDateString()] = true;
+  const today = new Date().toDateString();
+  if (!state.dailyLog[today]) state.dailyLog[today] = { xp: 0, lessons: 0, challenges: 0 };
+  state.dailyLog[today].xp = (state.dailyLog[today].xp || 0) + xp;
+  state.dailyLog[today].lessons = (state.dailyLog[today].lessons || 0) + 1;
   saveState();
 
   // Sound & effects
