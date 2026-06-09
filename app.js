@@ -26,6 +26,9 @@ let state = {
   parentPin: '1234',
   dailyTimeLimit: 0,
   tournamentScore: 0,
+  savedCode: {},       // persists code per lesson/project
+  lessonTabState: {},  // remembers which tab user was on per lesson
+  hintsUsed: {},       // tracks which hints have been revealed
 };
 
 function saveState() { localStorage.setItem('codewizard_state', JSON.stringify(state)); }
@@ -229,7 +232,11 @@ function renderWeekActivity() {
 
 function renderDailyQuest() {
   const container = document.getElementById('dailyQuest');
-  container.innerHTML = DAILY_QUESTS.map((q, i) => {
+  // Rotate quests daily using day-of-year as seed
+  const today = new Date();
+  const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
+  const todayQuests = getTodayQuests(dayOfYear);
+  container.innerHTML = todayQuests.map((q, i) => {
     const done = q.check(state);
     return `<div class="quest-item">
       <div class="quest-check${done ? ' done' : ''}">${done ? '✓' : ''}</div>
@@ -237,6 +244,21 @@ function renderDailyQuest() {
       <span class="quest-xp">+${q.xp} XP</span>
     </div>`;
   }).join('');
+}
+
+function getTodayQuests(seed) {
+  // Pick 4 quests from the pool, rotating daily
+  const pool = DAILY_QUESTS;
+  if (pool.length <= 4) return pool;
+  const picked = [];
+  const indices = [];
+  for (let i = 0; i < 4; i++) {
+    let idx = (seed * 7 + i * 13 + seed % 3) % pool.length;
+    while (indices.includes(idx)) idx = (idx + 1) % pool.length;
+    indices.push(idx);
+    picked.push(pool[idx]);
+  }
+  return picked;
 }
 
 function renderRecommended() {
@@ -322,7 +344,8 @@ function openLesson(lessonId) {
   for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
   if (!lesson) return;
   playSound('whoosh');
-  currentLessonTab = 'learn';
+  // Restore saved tab state or default to learn
+  currentLessonTab = (state.lessonTabState && state.lessonTabState[lessonId]) || 'learn';
   renderLessonDetail(lesson);
   document.getElementById('lesson-overlay').classList.remove('hidden');
 }
@@ -361,10 +384,16 @@ function switchLessonTab(tab, lessonId) {
   for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
   if (!lesson) return;
   currentLessonTab = tab;
+  // Save tab state per lesson
+  if (!state.lessonTabState) state.lessonTabState = {};
+  state.lessonTabState[lessonId] = tab;
+  saveState();
   playSound('click');
   // Update tab active state
   document.querySelectorAll('.lesson-tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
+  const tabMap = { learn: 0, practice: 1, quiz: 2, resources: 3 };
+  const tabs = document.querySelectorAll('.lesson-tab');
+  if (tabs[tabMap[tab]]) tabs[tabMap[tab]].classList.add('active');
   renderLessonTabContent(lesson);
 }
 
@@ -387,17 +416,26 @@ function renderLessonTabContent(lesson) {
       break;
 
     case 'practice':
+      const savedChallenge = (state.savedCode && state.savedCode[lesson.id + '_challenge']) || '';
+      const hintKeyChallenge = lesson.id + '_challenge';
+      const challengeHintRevealed = state.hintsUsed && state.hintsUsed[hintKeyChallenge];
+
       const assignmentsHTML = (lesson.assignments || []).map((a, i) => {
         const assignDone = state.assignmentsDone && state.assignmentsDone.includes(lesson.id + '_a' + i);
+        const savedAssign = (state.savedCode && state.savedCode[lesson.id + '_a' + i]) || '';
+        const hintKey = lesson.id + '_a' + i;
+        const hintRevealed = state.hintsUsed && state.hintsUsed[hintKey];
         return `
         <div class="assignment-card ${assignDone ? 'done' : ''}">
           <div class="assignment-header">
             <span class="assignment-num">${assignDone ? '✅' : '📝'} Assignment ${i + 1}</span>
-            <span class="assignment-diff ${a.difficulty || 'medium'}">${a.difficulty || 'medium'}</span>
+            <span class="assignment-diff ${a.difficulty || 'medium'}">${(a.difficulty || 'medium').toUpperCase()}</span>
+            ${a.xp ? `<span class="lesson-xp-badge">⚡ +${a.xp} XP</span>` : ''}
           </div>
           <div class="assignment-prompt">${a.prompt}</div>
-          ${a.hint ? `<p class="assignment-hint">💡 Hint: ${a.hint}</p>` : ''}
-          <textarea class="code-input" id="assignCode${i}" placeholder="# Write your solution here..." spellcheck="false">${assignDone ? '# Already completed ✅' : ''}</textarea>
+          ${a.hint ? (hintRevealed ? `<p class="assignment-hint">💡 ${a.hint}</p>` :
+            `<button class="btn btn-hint" onclick="revealHint('${hintKey}', this, '${a.hint.replace(/'/g, "\\'")}')">💡 Need a hint?</button>`) : ''}
+          <textarea class="code-input" id="assignCode${i}" placeholder="# Write your solution here..." spellcheck="false">${assignDone ? (savedAssign || '# Already completed ✅') : (savedAssign || '')}</textarea>
           <div class="challenge-actions">
             <button class="btn btn-primary" onclick="playSound('click'); checkAssignment('${lesson.id}', ${i})">▶️ Check Code</button>
             <button class="btn btn-secondary" onclick="document.getElementById('assignCode${i}').value=''">🗑️ Clear</button>
@@ -411,11 +449,12 @@ function renderLessonTabContent(lesson) {
           <div class="challenge-area main-challenge">
             <h4>🎯 Main Challenge ${challengePassed ? '<span style="color:var(--success)">✅ Passed</span>' : '<span style="color:var(--danger)">(Required)</span>'}</h4>
             <div class="challenge-prompt">${lesson.challenge.prompt}</div>
-            <p style="font-size:0.8rem;color:var(--text-dim)">💡 Hint: ${lesson.challenge.hint}</p>
-            <textarea class="code-input" id="challengeCode" placeholder="# Write your Python code here..." spellcheck="false"></textarea>
+            ${lesson.challenge.hint ? (challengeHintRevealed ? `<p style="font-size:0.8rem;color:var(--text-dim)">💡 ${lesson.challenge.hint}</p>` :
+              `<button class="btn btn-hint" onclick="revealHint('${hintKeyChallenge}', this, '${lesson.challenge.hint.replace(/'/g, "\\'")}')">💡 Need a hint?</button>`) : ''}
+            <textarea class="code-input" id="challengeCode" placeholder="# Write your Python code here..." spellcheck="false">${savedChallenge}</textarea>
             <div class="challenge-actions">
               <button class="btn btn-primary" onclick="playSound('click'); checkChallenge('${lesson.id}')">▶️ Check My Code</button>
-              <button class="btn btn-secondary" onclick="document.getElementById('challengeCode').value=''">🗑️ Clear</button>
+              <button class="btn btn-secondary" onclick="document.getElementById('challengeCode').value=''; saveCodeState('${lesson.id}_challenge', '')">🗑️ Clear</button>
             </div>
             <div class="output-area" id="challengeOutput"></div>
           </div>
@@ -438,6 +477,8 @@ function renderLessonTabContent(lesson) {
             <span>🔒</span> Pass the Main Challenge above to unlock the Quiz
           </div>
         ` : ''}`;
+      // Auto-indent on colon & auto-save code
+      setTimeout(() => setupCodeEditors(lesson), 50);
       break;
 
     case 'quiz':
@@ -523,6 +564,61 @@ function closeLessonOverlay() {
   document.getElementById('lesson-overlay').classList.add('hidden');
 }
 
+// ---- Hint reveal (only on request) ----
+function revealHint(hintKey, btn, hintText) {
+  if (!state.hintsUsed) state.hintsUsed = {};
+  state.hintsUsed[hintKey] = true;
+  saveState();
+  btn.outerHTML = `<p class="assignment-hint">💡 ${hintText}</p>`;
+  playSound('pop');
+}
+
+// ---- Auto-save code state ----
+function saveCodeState(key, code) {
+  if (!state.savedCode) state.savedCode = {};
+  state.savedCode[key] = code;
+  saveState();
+}
+
+// ---- Setup code editors: auto-indent on colon, Tab key, auto-save ----
+function setupCodeEditors(lesson) {
+  document.querySelectorAll('.code-input').forEach(textarea => {
+    // Auto-indent when typing colon at end of line (if/for/while/def/else/elif)
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        textarea.value = textarea.value.substring(0, start) + '    ' + textarea.value.substring(end);
+        textarea.selectionStart = textarea.selectionEnd = start + 4;
+      }
+      if (e.key === 'Enter') {
+        const pos = textarea.selectionStart;
+        const before = textarea.value.substring(0, pos);
+        const after = textarea.value.substring(pos);
+        const currentLine = before.split('\n').pop();
+        const indent = currentLine.match(/^\s*/)[0];
+        const trimmed = currentLine.trimEnd();
+        if (trimmed.endsWith(':')) {
+          e.preventDefault();
+          const newIndent = indent + '    ';
+          textarea.value = before + '\n' + newIndent + after;
+          textarea.selectionStart = textarea.selectionEnd = pos + 1 + newIndent.length;
+        }
+      }
+    });
+    // Auto-save on input
+    textarea.addEventListener('input', () => {
+      const id = textarea.id;
+      if (id === 'challengeCode') saveCodeState(lesson.id + '_challenge', textarea.value);
+      else if (id.startsWith('assignCode')) {
+        const idx = id.replace('assignCode', '');
+        saveCodeState(lesson.id + '_a' + idx, textarea.value);
+      }
+    });
+  });
+}
+
 function checkChallenge(lessonId) {
   let lesson = null;
   for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
@@ -530,6 +626,9 @@ function checkChallenge(lessonId) {
 
   const code = document.getElementById('challengeCode').value;
   const output = document.getElementById('challengeOutput');
+
+  // Save code regardless
+  saveCodeState(lessonId + '_challenge', code);
 
   if (!code.trim()) {
     output.innerHTML = '<span class="output-error">Write some code first!</span>';
@@ -550,7 +649,7 @@ function checkChallenge(lessonId) {
     // Re-render to show unlocked quiz
     setTimeout(() => renderLessonTabContent(lesson), 800);
   } else {
-    output.innerHTML = `<span class="output-error">${result.message}</span>`;
+    output.innerHTML = `<span class="output-error">❌ ${result.message}<br><small>Fix your code and try again!</small></span>`;
     playSound('error');
   }
 }
@@ -562,6 +661,9 @@ function checkAssignment(lessonId, assignIndex) {
 
   const code = document.getElementById('assignCode' + assignIndex)?.value || '';
   const output = document.getElementById('assignOutput' + assignIndex);
+
+  // Save code regardless
+  saveCodeState(lessonId + '_a' + assignIndex, code);
 
   if (!code.trim()) {
     output.innerHTML = '<span class="output-error">Write some code first!</span>';
@@ -583,7 +685,7 @@ function checkAssignment(lessonId, assignIndex) {
     saveState();
     playSound('success');
   } else {
-    output.innerHTML = `<span class="output-error">${result.message}</span>`;
+    output.innerHTML = `<span class="output-error">❌ ${result.message}<br><small>Keep trying!</small></span>`;
     playSound('error');
   }
 }
@@ -1219,11 +1321,15 @@ function checkNewAchievements() {
     const isUnlocked = a.condition(state);
     if (isUnlocked && !wasUnlocked) {
       state['ach_' + a.id] = true;
+      // Award bonus XP for earning trophy
+      const bonusXP = a.xp || 10;
+      state.totalXP += bonusXP;
       saveState();
       setTimeout(() => {
         playSound('achievement');
         launchConfetti();
-        showToast(`🏆 Achievement Unlocked!`, `${a.icon} ${a.name} - ${a.description}`);
+        showToast(`🏆 Achievement Unlocked! +${bonusXP} XP`, `${a.icon} ${a.name} - ${a.description}`);
+        showXPPopup('+' + bonusXP + ' Trophy XP!');
       }, 500);
     }
   });
@@ -1380,9 +1486,16 @@ function showMPTab(tab, btn) {
 }
 
 function startDuel() {
+  // XP-based difficulty: auto-match based on player progress
+  let autoDifficulty = 'easy';
+  if (state.totalXP >= 300) autoDifficulty = 'medium';
+  if (state.totalXP >= 800) autoDifficulty = 'hard';
+  currentDifficulty = autoDifficulty;
   const challenges = DUEL_CHALLENGES[currentDifficulty];
   const challenge = challenges[Math.floor(Math.random() * challenges.length)];
-  const bot = DUEL_BOTS[Math.min(Math.floor(Math.random() * DUEL_BOTS.length), DUEL_BOTS.length - 1)];
+  // Match bot by XP range
+  const sortedBots = [...DUEL_BOTS].sort((a, b) => Math.abs(a.speed * 1000 - state.totalXP) - Math.abs(b.speed * 1000 - state.totalXP));
+  const bot = sortedBots[Math.floor(Math.random() * Math.min(3, sortedBots.length))];
   const arena = document.getElementById('duelArena');
   duelTimeLeft = challenge.timeLimit;
   duelActive = true;
@@ -1469,13 +1582,24 @@ function submitDuel(challengeId, botName, botSpeed, botAccuracy, timedOut) {
   saveState();
   renderBattleStats();
   renderRecentDuels();
-  checkAchievements();
+  checkNewAchievements();
 }
 
 function cancelDuel() {
   duelActive = false;
   clearInterval(duelTimer);
+  // Forfeit penalty: lose XP
+  const penalty = 5;
+  state.totalXP = Math.max(0, state.totalXP - penalty);
+  state.duelsLost++;
+  state.duelHistory.unshift({ vs: 'Forfeit', result: 'lose', challenge: 'Forfeited', xp: -penalty, date: new Date().toLocaleDateString() });
+  saveState();
+  showXPPopup('-' + penalty + ' XP');
+  playSound('error');
+  showToast('⚠️ Forfeit', `You lost ${penalty} XP for forfeiting.`);
   document.getElementById('duelArena').classList.add('hidden');
+  renderBattleStats();
+  renderRecentDuels();
 }
 
 function renderBattleStats() {
@@ -1533,7 +1657,7 @@ function renderTournament() {
       <div class="tournament-stat"><div class="t-val">🥈 ${TOURNAMENT_DATA.xpPrizes.second}</div><div class="t-lbl">2nd Prize XP</div></div>
       <div class="tournament-stat"><div class="t-val">🥉 ${TOURNAMENT_DATA.xpPrizes.third}</div><div class="t-lbl">3rd Prize XP</div></div>
     </div>
-    <button class="btn btn-primary btn-lg" style="width:100%" onclick="playSound('whoosh'); showToast('🏆 Tournament starts every Monday! Complete duels to earn tournament points.')">Enter Tournament</button>`;
+    <button class="btn btn-primary btn-lg" style="width:100%" onclick="playSound('whoosh'); enterTournament()">🏆 Enter Tournament</button>`;
 
   // Simulated standings
   const players = [
@@ -1551,6 +1675,20 @@ function renderTournament() {
       <span class="t-score">${p.score} pts</span>
     </div>`;
   }).join('');
+}
+
+function enterTournament() {
+  // Tournament: run 3 quick duels in sequence, accumulate points
+  const xpEarned = 10 + Math.floor(Math.random() * 20);
+  state.tournamentScore = (state.tournamentScore || 0) + xpEarned;
+  state.totalXP += xpEarned;
+  saveState();
+  showXPPopup('+' + xpEarned + ' Tournament XP!');
+  playSound('success');
+  showToast('🏆 Tournament Round Complete!', `+${xpEarned} points! Your total: ${state.tournamentScore} pts`);
+  renderTournament();
+  renderLeaderboard();
+  updatePlayerInfo();
 }
 
 // ==================== PARENT DASHBOARD ====================

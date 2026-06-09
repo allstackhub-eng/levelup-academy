@@ -718,6 +718,21 @@ body {
 .resource-url { font-size: 0.7rem; color: var(--primary); margin-top: 4px; font-family: var(--font-code); }
 .resource-arrow { font-size: 1.2rem; color: var(--primary); }
 
+/* Hint button */
+.btn-hint {
+  background: transparent; color: var(--accent-yellow); border: 1px dashed var(--accent-yellow);
+  padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.82rem;
+  font-weight: 600; margin: 8px 0; transition: all 0.2s;
+}
+.btn-hint:hover { background: rgba(251,191,36,0.1); }
+
+.assignment-diff {
+  font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; text-transform: uppercase;
+}
+.assignment-diff.easy { background: rgba(16,185,129,0.2); color: var(--success); }
+.assignment-diff.medium { background: rgba(245,158,11,0.2); color: var(--accent-yellow); }
+.assignment-diff.hard { background: rgba(239,68,68,0.2); color: var(--danger); }
+
 /* ==================== OVERLAY ==================== */
 .overlay {
   position: fixed;
