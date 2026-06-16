@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LevelUp Academy - Code Your Future, One Level at a Time</title>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
   <!-- Animated Background Particles -->
@@ -50,6 +50,9 @@
         </button>
         <button class="sound-toggle-btn" id="soundToggle" onclick="toggleSound()" title="Toggle Sound">
           🔊 <span class="nav-text">Sound</span>
+        </button>
+        <button class="theme-toggle-btn" id="logoutBtn" onclick="playSound('click'); handleLogout()" title="Log Out" style="display:none">
+          🚪 <span class="nav-text">Log Out</span>
         </button>
         <div class="player-info">
           <div class="avatar" id="playerAvatar">🧑‍💻</div>
@@ -301,13 +304,36 @@
       <div class="onboarding-mascot bounce-in">🚀</div>
       <h2>Welcome to LevelUp Academy!</h2>
       <p class="onboarding-sub">Code Your Future, One Level at a Time</p>
-      <label class="input-label">What should we call you?</label>
-      <input type="text" id="nameInput" placeholder="Enter your coder name..." maxlength="20">
-      <label class="input-label">Pick your avatar:</label>
-      <div class="avatar-picker" id="avatarPicker"></div>
-      <label class="input-label">Choose your theme:</label>
-      <div class="theme-picker-inline" id="onboardingThemes"></div>
-      <button class="btn btn-primary btn-lg btn-glow" onclick="playSound('levelUp'); completeOnboarding()">Start My Adventure! 🚀</button>
+
+      <!-- Auth tabs -->
+      <div class="auth-tabs" id="authTabs">
+        <button class="auth-tab active" onclick="showAuthTab('signup', this)">New Coder</button>
+        <button class="auth-tab" onclick="showAuthTab('login', this)">Returning Coder</button>
+      </div>
+
+      <!-- Signup form -->
+      <div id="auth-signup">
+        <label class="input-label">Choose your coder name:</label>
+        <input type="text" id="nameInput" placeholder="Enter your coder name..." maxlength="20" autocomplete="username">
+        <label class="input-label">Create a password:</label>
+        <input type="password" id="passwordInput" placeholder="At least 4 characters..." autocomplete="new-password">
+        <label class="input-label">Pick your avatar:</label>
+        <div class="avatar-picker" id="avatarPicker"></div>
+        <label class="input-label">Choose your theme:</label>
+        <div class="theme-picker-inline" id="onboardingThemes"></div>
+        <p id="signupError" class="auth-error hidden"></p>
+        <button class="btn btn-primary btn-lg btn-glow" onclick="playSound('levelUp'); completeOnboarding()">Start My Adventure! 🚀</button>
+      </div>
+
+      <!-- Login form -->
+      <div id="auth-login" class="hidden">
+        <label class="input-label">Your coder name:</label>
+        <input type="text" id="loginNameInput" placeholder="Enter your coder name..." maxlength="20" autocomplete="username">
+        <label class="input-label">Your password:</label>
+        <input type="password" id="loginPasswordInput" placeholder="Enter your password..." autocomplete="current-password">
+        <p id="loginError" class="auth-error hidden"></p>
+        <button class="btn btn-primary btn-lg btn-glow" onclick="playSound('levelUp'); handleLogin()">Welcome Back! 🎉</button>
+      </div>
     </div>
   </div>
 
@@ -320,9 +346,10 @@
   <!-- Confetti Canvas -->
   <canvas id="confetti" class="confetti-canvas"></canvas>
 
-  <script src="data.js"></script>
-  <script src="extras.js"></script>
-  <script src="sounds.js"></script>
-  <script src="app.js"></script>
+  <script src="data.js?v=4"></script>
+  <script src="extras.js?v=4"></script>
+  <script src="sounds.js?v=4"></script>
+  <script src="api.js?v=4"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

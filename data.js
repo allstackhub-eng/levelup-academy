@@ -1068,26 +1068,49 @@ const PROJECTS = [
 ];
 
 const ACHIEVEMENTS = [
-  { id: 'a1', name: 'First Steps', icon: '👶', description: 'Complete your first lesson', condition: (s) => s.lessonsCompleted >= 1 },
-  { id: 'a2', name: 'Hello World', icon: '🌍', description: 'Print your first message', condition: (s) => s.lessonsCompleted >= 1 },
-  { id: 'a3', name: 'On Fire', icon: '🔥', description: 'Get a 3-day streak', condition: (s) => s.streak >= 3 },
-  { id: 'a4', name: 'Week Warrior', icon: '🗓️', description: 'Complete all Week 1 lessons', condition: (s) => s.weekComplete[1] },
-  { id: 'a5', name: 'Century Club', icon: '💯', description: 'Earn 100 XP', condition: (s) => s.totalXP >= 100 },
-  { id: 'a6', name: 'Loop Master', icon: '🔄', description: 'Complete the loops lesson', condition: (s) => s.lessonsCompleted >= 7 },
-  { id: 'a7', name: 'Function Pro', icon: '🔧', description: 'Complete the functions lesson', condition: (s) => s.lessonsCompleted >= 11 },
-  { id: 'a8', name: 'Project Builder', icon: '🏗️', description: 'Complete your first project', condition: (s) => s.projectsCompleted >= 1 },
-  { id: 'a9', name: 'Half Way', icon: '🏔️', description: 'Reach 500 XP', condition: (s) => s.totalXP >= 500 },
-  { id: 'a10', name: 'Game Developer', icon: '🎮', description: 'Build your first game', condition: (s) => s.lessonsCompleted >= 17 },
-  { id: 'a11', name: 'Code Master', icon: '👑', description: 'Complete all 40 lessons', condition: (s) => s.lessonsCompleted >= 40 },
-  { id: 'a12', name: 'Innovator', icon: '💡', description: 'Reach 1500 XP', condition: (s) => s.totalXP >= 1500 },
-  { id: 'a13', name: 'Error Handler', icon: '🛡️', description: 'Complete Week 5 (Error Handling)', condition: (s) => s.weekComplete && s.weekComplete[5] },
-  { id: 'a14', name: 'OOP Pioneer', icon: '🏗️', description: 'Complete Week 6 (Classes & OOP)', condition: (s) => s.weekComplete && s.weekComplete[6] },
-  { id: 'a15', name: 'Algorithm Ace', icon: '🧮', description: 'Complete Week 7 (Algorithms)', condition: (s) => s.weekComplete && s.weekComplete[7] },
-  { id: 'a16', name: 'AI Explorer', icon: '🤖', description: 'Complete Week 8 (AI & Capstone)', condition: (s) => s.weekComplete && s.weekComplete[8] },
-  { id: 'a17', name: 'Duel Champion', icon: '⚔️', description: 'Win 5 code duels', condition: (s) => (s.duelsWon || 0) >= 5 },
-  { id: 'a18', name: 'XP Legend', icon: '💎', description: 'Reach 3000 XP', condition: (s) => s.totalXP >= 3000 },
-  { id: 'a19', name: 'Unstoppable', icon: '🔥', description: 'Get a 7-day streak', condition: (s) => s.streak >= 7 },
-  { id: 'a20', name: 'Completionist', icon: '🏆', description: 'Complete all 8 weeks', condition: (s) => s.weekComplete && [1,2,3,4,5,6,7,8].every(w => s.weekComplete[w]) },
+  // Progress milestones
+  { id: 'a1', name: 'First Steps', icon: '👶', description: 'Complete your first lesson', xp: 10, condition: (s) => s.lessonsCompleted >= 1 },
+  { id: 'a5', name: 'Century Club', icon: '💯', description: 'Earn 100 XP', xp: 15, condition: (s) => s.totalXP >= 100 },
+  { id: 'a9', name: 'Half Way There', icon: '🏔️', description: 'Reach 500 XP', xp: 25, condition: (s) => s.totalXP >= 500 },
+  { id: 'a12', name: 'XP Powerhouse', icon: '💡', description: 'Reach 1500 XP', xp: 40, condition: (s) => s.totalXP >= 1500 },
+  { id: 'a18', name: 'XP Legend', icon: '💎', description: 'Reach 3000 XP', xp: 50, condition: (s) => s.totalXP >= 3000 },
+
+  // Streak achievements
+  { id: 'a3', name: 'On Fire', icon: '🔥', description: 'Get a 3-day streak', xp: 15, condition: (s) => s.streak >= 3 },
+  { id: 'a19', name: 'Unstoppable', icon: '🌋', description: 'Get a 7-day streak', xp: 30, condition: (s) => s.streak >= 7 },
+  { id: 'a21', name: 'Marathon Coder', icon: '🏃', description: 'Get a 14-day streak', xp: 50, condition: (s) => s.streak >= 14 },
+
+  // Week completions
+  { id: 'a4', name: 'Week Warrior', icon: '🗓️', description: 'Complete all Week 1 lessons', xp: 20, condition: (s) => s.weekComplete && s.weekComplete[1] },
+  { id: 'a6', name: 'Loop Master', icon: '🔄', description: 'Complete Week 2 (Loops & Lists)', xp: 20, condition: (s) => s.weekComplete && s.weekComplete[2] },
+  { id: 'a7', name: 'Function Pro', icon: '🔧', description: 'Complete Week 3 (Functions)', xp: 20, condition: (s) => s.weekComplete && s.weekComplete[3] },
+  { id: 'a10', name: 'Game Developer', icon: '🎮', description: 'Complete Week 4 (Games & Projects)', xp: 25, condition: (s) => s.weekComplete && s.weekComplete[4] },
+  { id: 'a13', name: 'Error Handler', icon: '🛡️', description: 'Complete Week 5 (Error Handling)', xp: 25, condition: (s) => s.weekComplete && s.weekComplete[5] },
+  { id: 'a14', name: 'OOP Pioneer', icon: '🏛️', description: 'Complete Week 6 (Classes & OOP)', xp: 30, condition: (s) => s.weekComplete && s.weekComplete[6] },
+  { id: 'a15', name: 'Algorithm Ace', icon: '🧮', description: 'Complete Week 7 (Algorithms)', xp: 30, condition: (s) => s.weekComplete && s.weekComplete[7] },
+  { id: 'a16', name: 'AI Visionary', icon: '🤖', description: 'Complete Week 8 (AI & Capstone)', xp: 40, condition: (s) => s.weekComplete && s.weekComplete[8] },
+
+  // Projects
+  { id: 'a8', name: 'Project Builder', icon: '🏗️', description: 'Complete your first project', xp: 15, condition: (s) => s.projectsCompleted >= 1 },
+  { id: 'a22', name: 'Project Master', icon: '🏆', description: 'Complete 5 projects', xp: 40, condition: (s) => s.projectsCompleted >= 5 },
+
+  // Battle arena
+  { id: 'a17', name: 'Duel Champion', icon: '⚔️', description: 'Win 5 code duels', xp: 20, condition: (s) => (s.duelsWon || 0) >= 5 },
+  { id: 'a23', name: 'Arena Legend', icon: '🏟️', description: 'Win 15 code duels', xp: 40, condition: (s) => (s.duelsWon || 0) >= 15 },
+  { id: 'a24', name: 'Win Streak', icon: '⚡', description: 'Win 3 duels in a row', xp: 25, condition: (s) => { const h = s.duelHistory || []; return h.length >= 3 && h[0].result === 'win' && h[1].result === 'win' && h[2].result === 'win'; } },
+
+  // Quiz mastery
+  { id: 'a25', name: 'Quiz Whiz', icon: '📝', description: 'Pass 5 quizzes', xp: 15, condition: (s) => (s.quizzesPassed || []).length >= 5 },
+  { id: 'a26', name: 'Quiz Master', icon: '🎓', description: 'Pass 20 quizzes', xp: 35, condition: (s) => (s.quizzesPassed || []).length >= 20 },
+
+  // Assignments
+  { id: 'a27', name: 'Extra Credit', icon: '📚', description: 'Complete 5 extra assignments', xp: 15, condition: (s) => (s.assignmentsDone || []).length >= 5 },
+  { id: 'a28', name: 'Overachiever', icon: '🌟', description: 'Complete 20 extra assignments', xp: 35, condition: (s) => (s.assignmentsDone || []).length >= 20 },
+
+  // Ultimate
+  { id: 'a11', name: 'Code Master', icon: '👑', description: 'Complete all 40 lessons', xp: 100, condition: (s) => s.lessonsCompleted >= 40 },
+  { id: 'a20', name: 'Completionist', icon: '🏆', description: 'Complete all weeks AND pass all quizzes', xp: 150, condition: (s) => s.weekComplete && [1,2,3,4,5,6,7,8].every(w => s.weekComplete[w]) && (s.quizzesPassed || []).length >= 40 },
+  { id: 'a29', name: 'True Wizard', icon: '🧙', description: 'Earn every other trophy', xp: 200, condition: (s) => { const count = ACHIEVEMENTS.filter(a => a.id !== 'a29' && a.condition(s)).length; return count >= ACHIEVEMENTS.length - 1; } },
 ];
 
 const DAILY_QUESTS = [
@@ -1095,6 +1118,14 @@ const DAILY_QUESTS = [
   { text: 'Try a code challenge', xp: 15, check: (s) => s.todayChallenges >= 1 },
   { text: 'Use the Code Playground', xp: 10, check: (s) => s.todayPlayground },
   { text: 'Complete a mini project', xp: 20, check: (s) => s.todayProject },
+  { text: 'Complete 2 lessons today', xp: 25, check: (s) => s.todayLessons >= 2 },
+  { text: 'Pass a quiz on your first try', xp: 20, check: (s) => (s.quizzesPassed || []).length > 0 },
+  { text: 'Win a code duel', xp: 20, check: (s) => (s.duelsWon || 0) > 0 },
+  { text: 'Complete 3 code challenges', xp: 25, check: (s) => s.todayChallenges >= 3 },
+  { text: 'Finish an extra assignment', xp: 15, check: (s) => (s.assignmentsDone || []).length > 0 },
+  { text: 'Explore a Deep Dive resource', xp: 10, check: (s) => s.todayLessons >= 1 },
+  { text: 'Earn 50+ XP today', xp: 15, check: (s) => { const t = new Date().toDateString(); return s.dailyLog && s.dailyLog[t] && s.dailyLog[t].xp >= 50; } },
+  { text: 'Try a hard duel challenge', xp: 25, check: (s) => s.totalXP >= 800 && (s.duelsWon || 0) > 0 },
 ];
 
 const PLAYGROUND_EXAMPLES = [
