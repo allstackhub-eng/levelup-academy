@@ -31,7 +31,10 @@ let state = {
   hintsUsed: {},       // tracks which hints have been revealed
 };
 
-function saveState() { localStorage.setItem('codewizard_state', JSON.stringify(state)); }
+function saveState() {
+  localStorage.setItem('codewizard_state', JSON.stringify(state));
+  if (typeof syncToServer === 'function') syncToServer();
+}
 
 function loadState() {
   const saved = localStorage.getItem('codewizard_state');
@@ -53,12 +56,32 @@ function checkStreak() {
 }
 
 // ==================== INIT ====================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   loadState();
   applyTheme(state.theme || 'cosmic');
   initParticles();
-  if (!state.onboarded) showOnboarding();
-  else initApp();
+
+  if (api.isLoggedIn() && state.onboarded) {
+    const serverProgress = await api.loadProgress();
+    if (serverProgress) {
+      if (serverProgress.xp > state.totalXP) {
+        state.totalXP = serverProgress.xp;
+        state.streak = serverProgress.streak;
+        state.completedLessons = serverProgress.lessonsCompleted || [];
+        state.quizzesPassed = serverProgress.quizzesPassed || [];
+        state.completedProjects = serverProgress.projectsCompleted || [];
+        state.lessonsCompleted = state.completedLessons.length;
+        state.projectsCompleted = state.completedProjects.length;
+        saveState();
+      }
+    }
+    document.getElementById('logoutBtn').style.display = '';
+    initApp();
+  } else if (state.onboarded && !api.isLoggedIn()) {
+    initApp();
+  } else {
+    showOnboarding();
+  }
 });
 
 function showOnboarding() {
@@ -67,7 +90,6 @@ function showOnboarding() {
   picker.innerHTML = AVATARS.map(a =>
     `<div class="avatar-option${a === state.avatar ? ' selected' : ''}" onclick="selectAvatar(this, '${a}')">${a}</div>`
   ).join('');
-  // Theme picker in onboarding
   const tp = document.getElementById('onboardingThemes');
   if (tp) {
     tp.innerHTML = THEMES.map(t =>
@@ -76,6 +98,13 @@ function showOnboarding() {
       </div>`
     ).join('');
   }
+}
+
+function showAuthTab(tab, el) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('auth-signup').classList.toggle('hidden', tab !== 'signup');
+  document.getElementById('auth-login').classList.toggle('hidden', tab !== 'login');
 }
 
 function selectAvatar(el, a) {
@@ -93,17 +122,115 @@ function selectOnboardingTheme(el, themeId) {
   playSound('whoosh');
 }
 
-function completeOnboarding() {
-  const name = document.getElementById('nameInput').value.trim() || 'Young Coder';
+async function completeOnboarding() {
+  const name = document.getElementById('nameInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  const errorEl = document.getElementById('signupError');
+
+  if (!name) {
+    errorEl.textContent = 'Please enter a coder name!';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+  if (!password || password.length < 4) {
+    errorEl.textContent = 'Password must be at least 4 characters!';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  errorEl.classList.add('hidden');
+  const result = await api.signup(name, password, state.avatar, state.theme);
+
+  if (!result) {
+    errorEl.textContent = 'Could not connect to server. Try again!';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+  if (result.error) {
+    errorEl.textContent = result.error;
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
   state.name = name;
   state.onboarded = true;
   state.lastVisit = new Date().toDateString();
   state.streak = 1;
   saveState();
   document.getElementById('onboarding-modal').classList.add('hidden');
+  document.getElementById('logoutBtn').style.display = '';
   initApp();
   showToast('Welcome, ' + name + '!', 'Your coding adventure begins now! 🚀');
   launchConfetti();
+}
+
+async function handleLogin() {
+  const name = document.getElementById('loginNameInput').value.trim();
+  const password = document.getElementById('loginPasswordInput').value;
+  const errorEl = document.getElementById('loginError');
+
+  if (!name || !password) {
+    errorEl.textContent = 'Enter your coder name and password!';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  errorEl.classList.add('hidden');
+  const result = await api.login(name, password);
+
+  if (!result) {
+    errorEl.textContent = 'Could not connect to server. Try again!';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+  if (result.error) {
+    errorEl.textContent = result.error;
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  state.name = result.user.username;
+  state.avatar = result.user.avatar;
+  state.theme = result.user.theme;
+  state.onboarded = true;
+  applyTheme(state.theme);
+
+  const serverProgress = await api.loadProgress();
+  if (serverProgress) {
+    state.totalXP = serverProgress.xp || 0;
+    state.streak = serverProgress.streak || 0;
+    state.completedLessons = serverProgress.lessonsCompleted || [];
+    state.quizzesPassed = serverProgress.quizzesPassed || [];
+    state.completedProjects = serverProgress.projectsCompleted || [];
+    state.savedCode = serverProgress.savedCode || {};
+    state.lessonTabState = serverProgress.lessonTabState || {};
+    state.hintsUsed = serverProgress.hintsUsed || {};
+    state.lessonsCompleted = state.completedLessons.length;
+    state.projectsCompleted = state.completedProjects.length;
+  }
+
+  saveState();
+  document.getElementById('onboarding-modal').classList.add('hidden');
+  document.getElementById('logoutBtn').style.display = '';
+  initApp();
+  showToast('Welcome back, ' + state.name + '!', 'Let\'s keep coding! 🎉');
+}
+
+function handleLogout() {
+  api.logout();
+  state = {
+    name: '', avatar: '🧑‍💻', theme: 'cosmic', totalXP: 0, streak: 0,
+    lessonsCompleted: 0, projectsCompleted: 0, completedLessons: [], completedProjects: [],
+    weekComplete: {}, todayLessons: 0, todayChallenges: 0, todayPlayground: false,
+    todayProject: false, lastVisit: null, dailyLog: {}, onboarded: false,
+    quizzesPassed: [], challengesPassed: [], assignmentsDone: [],
+    duelsWon: 0, duelsLost: 0, duelHistory: [], parentPin: '1234',
+    dailyTimeLimit: 0, tournamentScore: 0, savedCode: {}, lessonTabState: {}, hintsUsed: {}
+  };
+  localStorage.removeItem('codewizard_state');
+  document.getElementById('logoutBtn').style.display = 'none';
+  applyTheme('cosmic');
+  showOnboarding();
 }
 
 function initApp() {
@@ -1260,12 +1387,25 @@ function startProject(projectId) {
 }
 
 // ==================== LEADERBOARD ====================
-function renderLeaderboard() {
-  // Merge player into bot list
-  const playerEntry = { name: state.name || 'You', avatar: state.avatar, xp: state.totalXP, streak: state.streak, isPlayer: true };
-  const all = [...LEADERBOARD_BOTS, playerEntry].sort((a, b) => b.xp - a.xp);
+async function renderLeaderboard() {
+  let all;
+  const myId = api.user ? api.user.id : null;
 
-  // Podium (top 3)
+  if (api.isLoggedIn()) {
+    const serverBoard = await api.getLeaderboard();
+    if (serverBoard && serverBoard.length > 0) {
+      all = serverBoard.map(p => ({
+        name: p.username, avatar: p.avatar, xp: p.xp, streak: p.streak,
+        isPlayer: p.id === myId
+      }));
+    }
+  }
+
+  if (!all) {
+    const playerEntry = { name: state.name || 'You', avatar: state.avatar, xp: state.totalXP, streak: state.streak, isPlayer: true };
+    all = [...LEADERBOARD_BOTS, playerEntry].sort((a, b) => b.xp - a.xp);
+  }
+
   const podium = document.getElementById('podium');
   const medals = ['🥇', '🥈', '🥉'];
   const classes = ['gold', 'silver', 'bronze'];
@@ -1280,7 +1420,6 @@ function renderLeaderboard() {
     </div>`
   ).join('');
 
-  // Rest of the table
   const table = document.getElementById('leaderboardTable');
   table.innerHTML = all.slice(3).map((p, i) => {
     const rank = i + 4;
@@ -1321,10 +1460,10 @@ function checkNewAchievements() {
     const isUnlocked = a.condition(state);
     if (isUnlocked && !wasUnlocked) {
       state['ach_' + a.id] = true;
-      // Award bonus XP for earning trophy
       const bonusXP = a.xp || 10;
       state.totalXP += bonusXP;
       saveState();
+      if (api.isLoggedIn()) api.addAchievement(a.id);
       setTimeout(() => {
         playSound('achievement');
         launchConfetti();
@@ -1580,6 +1719,16 @@ function submitDuel(challengeId, botName, botSpeed, botAccuracy, timedOut) {
 
   if (state.duelHistory.length > 20) state.duelHistory = state.duelHistory.slice(0, 20);
   saveState();
+  if (api.isLoggedIn()) {
+    api.addDuel({
+      difficulty: currentDifficulty,
+      challengeId: challengeId,
+      userCode: code,
+      result: playerWins ? 'win' : 'loss',
+      xpEarned: playerWins ? challenge.xp : 0,
+      timeTaken: timeUsed
+    });
+  }
   renderBattleStats();
   renderRecentDuels();
   checkNewAchievements();
