@@ -18,6 +18,8 @@
   --success: #34d399;
   --danger: #f87171;
   --border: #2a2750;
+  --bg-code: #0d0c1a;
+  --text-code: #e8e6f0;
   --sidebar-bg: linear-gradient(180deg, #1a1840 0%, #13112a 100%);
   --particle-color: rgba(124, 92, 252, 0.3);
   --card-gradient: linear-gradient(135deg, rgba(124,92,252,0.05), transparent);
@@ -40,6 +42,8 @@
   --accent-orange: #ff8fab;
   --accent-yellow: #f9c74f;
   --border: #1e3a5f;
+  --bg-code: #0a1020;
+  --text-code: #e0e8f0;
   --sidebar-bg: linear-gradient(180deg, #0d1f3c 0%, #091428 100%);
   --particle-color: rgba(0, 180, 216, 0.3);
   --card-gradient: linear-gradient(135deg, rgba(0,180,216,0.05), transparent);
@@ -58,6 +62,8 @@
   --accent-orange: #ffb74d;
   --accent-yellow: #fff176;
   --border: #2e5c2e;
+  --bg-code: #0a1a0a;
+  --text-code: #e0f0e0;
   --sidebar-bg: linear-gradient(180deg, #1a3d1a 0%, #0d1f0d 100%);
   --particle-color: rgba(76, 175, 80, 0.3);
   --card-gradient: linear-gradient(135deg, rgba(76,175,80,0.05), transparent);
@@ -76,6 +82,8 @@
   --accent-orange: #ff7043;
   --accent-yellow: #ffd54f;
   --border: #4a2020;
+  --bg-code: #1a0808;
+  --text-code: #f0e0e0;
   --sidebar-bg: linear-gradient(180deg, #2a1010 0%, #1a0808 100%);
   --particle-color: rgba(239, 83, 80, 0.3);
   --card-gradient: linear-gradient(135deg, rgba(239,83,80,0.05), transparent);
@@ -94,6 +102,8 @@
   --accent-orange: #ff6e40;
   --accent-yellow: #ffea00;
   --border: #3d1a66;
+  --bg-code: #1a0a30;
+  --text-code: #f0e0f8;
   --sidebar-bg: linear-gradient(180deg, #2a1248 0%, #1a0a30 100%);
   --particle-color: rgba(224, 64, 251, 0.3);
   --card-gradient: linear-gradient(135deg, rgba(224,64,251,0.05), transparent);
@@ -116,6 +126,8 @@
   --success: #22c55e;
   --danger: #ef4444;
   --border: #cbd5e1;
+  --bg-code: #1e293b;
+  --text-code: #e2e8f0;
   --sidebar-bg: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
   --particle-color: rgba(59, 130, 246, 0.2);
   --card-gradient: linear-gradient(135deg, rgba(59,130,246,0.04), transparent);
@@ -771,9 +783,10 @@ body {
 .lesson-content p { line-height: 1.7; margin-bottom: 12px; }
 
 .code-block {
-  background: #0d0c1a;
+  background: var(--bg-code);
   border: 2px solid var(--border);
   border-radius: var(--radius-sm);
+  color: var(--text-code);
   padding: 16px;
   margin: 12px 0;
   font-family: 'Fira Code', monospace;
@@ -803,10 +816,10 @@ body {
 
 .code-input {
   width: 100%; min-height: 120px;
-  background: #0d0c1a;
+  background: var(--bg-code);
   border: 2px solid var(--border);
   border-radius: var(--radius-sm);
-  color: var(--text);
+  color: var(--text-code);
   font-family: 'Fira Code', monospace;
   font-size: 0.88rem;
   padding: 14px;
@@ -818,10 +831,10 @@ body {
 .challenge-actions { display: flex; gap: 10px; margin-top: 12px; }
 
 .output-area {
-  background: #0d0c1a;
+  background: var(--bg-code);
   border: 2px solid var(--border);
   border-radius: var(--radius-sm);
-  color: var(--text);
+  color: var(--text-code);
   padding: 14px;
   margin-top: 12px;
   font-family: 'Fira Code', monospace;
@@ -877,10 +890,10 @@ body {
 
 .playground-textarea {
   flex: 1; width: 100%; min-height: 380px;
-  background: #0d0c1a;
+  background: var(--bg-code);
   border: 2px solid var(--border);
   border-radius: var(--radius-sm);
-  color: var(--text);
+  color: var(--text-code);
   font-family: 'Fira Code', monospace;
   font-size: 0.88rem;
   padding: 16px;
@@ -895,9 +908,10 @@ body {
 
 .playground-output-area {
   flex: 1;
-  background: #0d0c1a;
+  background: var(--bg-code);
   border: 2px solid var(--border);
   border-radius: var(--radius-sm);
+  color: var(--text-code);
   padding: 16px;
   font-family: 'Fira Code', monospace;
   font-size: 0.82rem;
