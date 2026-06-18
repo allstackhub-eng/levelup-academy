@@ -26,6 +26,8 @@ let state = {
   parentPin: '1234',
   dailyTimeLimit: 0,
   tournamentScore: 0,
+  tournamentRound: 0,
+  playgroundRuns: 0,
   savedCode: {},       // persists code per lesson/project
   lessonTabState: {},  // remembers which tab user was on per lesson
   hintsUsed: {},       // tracks which hints have been revealed
@@ -225,7 +227,7 @@ function handleLogout() {
     todayProject: false, lastVisit: null, dailyLog: {}, onboarded: false,
     quizzesPassed: [], challengesPassed: [], assignmentsDone: [],
     duelsWon: 0, duelsLost: 0, duelHistory: [], parentPin: '1234',
-    dailyTimeLimit: 0, tournamentScore: 0, savedCode: {}, lessonTabState: {}, hintsUsed: {}
+    dailyTimeLimit: 0, tournamentScore: 0, tournamentRound: 0, playgroundRuns: 0, savedCode: {}, lessonTabState: {}, hintsUsed: {}
   };
   localStorage.removeItem('codewizard_state');
   document.getElementById('logoutBtn').style.display = 'none';
@@ -497,7 +499,7 @@ function renderLessonDetail(lesson) {
     <div class="lesson-tabs">
       <button class="lesson-tab ${currentLessonTab === 'learn' ? 'active' : ''}" onclick="switchLessonTab('learn', '${lesson.id}')">📖 Learn</button>
       <button class="lesson-tab ${currentLessonTab === 'practice' ? 'active' : ''}" onclick="switchLessonTab('practice', '${lesson.id}')">💻 Practice ${challengePassed ? '✅' : ''}</button>
-      ${hasQuiz ? `<button class="lesson-tab ${currentLessonTab === 'quiz' ? 'active' : ''}" onclick="switchLessonTab('quiz', '${lesson.id}')">📝 Quiz ${quizPassed ? '✅' : '🔒'}</button>` : ''}
+      ${hasQuiz ? `<button class="lesson-tab ${currentLessonTab === 'quiz' ? 'active' : ''}${!challengePassed && !quizPassed ? ' tab-locked' : ''}" onclick="${challengePassed || quizPassed ? `switchLessonTab('quiz', '${lesson.id}')` : `playSound('error'); showToast('🔒 Locked', 'Pass the Main Challenge first!')`}">📝 Quiz ${quizPassed ? '✅' : !challengePassed ? '🔒' : ''}</button>` : ''}
       ${hasResources ? `<button class="lesson-tab ${currentLessonTab === 'resources' ? 'active' : ''}" onclick="switchLessonTab('resources', '${lesson.id}')">📚 Deep Dive</button>` : ''}
     </div>
 
@@ -564,7 +566,8 @@ function renderLessonTabContent(lesson) {
             `<button class="btn btn-hint" onclick="revealHint('${hintKey}', this, '${a.hint.replace(/'/g, "\\'")}')">💡 Need a hint?</button>`) : ''}
           <textarea class="code-input" id="assignCode${i}" placeholder="# Write your solution here..." spellcheck="false">${assignDone ? (savedAssign || '# Already completed ✅') : (savedAssign || '')}</textarea>
           <div class="challenge-actions">
-            <button class="btn btn-primary" onclick="playSound('click'); checkAssignment('${lesson.id}', ${i})">▶️ Check Code</button>
+            <button class="btn btn-run" onclick="playSound('click'); runAssignmentCode('${lesson.id}', ${i})">▶️ Run</button>
+            <button class="btn btn-primary" onclick="playSound('click'); checkAssignment('${lesson.id}', ${i})">✅ Submit</button>
             <button class="btn btn-secondary" onclick="document.getElementById('assignCode${i}').value=''">🗑️ Clear</button>
           </div>
           <div class="output-area" id="assignOutput${i}"></div>
@@ -580,7 +583,8 @@ function renderLessonTabContent(lesson) {
               `<button class="btn btn-hint" onclick="revealHint('${hintKeyChallenge}', this, '${lesson.challenge.hint.replace(/'/g, "\\'")}')">💡 Need a hint?</button>`) : ''}
             <textarea class="code-input" id="challengeCode" placeholder="# Write your Python code here..." spellcheck="false">${savedChallenge}</textarea>
             <div class="challenge-actions">
-              <button class="btn btn-primary" onclick="playSound('click'); checkChallenge('${lesson.id}')">▶️ Check My Code</button>
+              <button class="btn btn-run" onclick="playSound('click'); runChallengeCode('${lesson.id}')">▶️ Run</button>
+              <button class="btn btn-primary" onclick="playSound('click'); checkChallenge('${lesson.id}')">✅ Submit</button>
               <button class="btn btn-secondary" onclick="document.getElementById('challengeCode').value=''; saveCodeState('${lesson.id}_challenge', '')">🗑️ Clear</button>
             </div>
             <div class="output-area" id="challengeOutput"></div>
@@ -746,6 +750,36 @@ function setupCodeEditors(lesson) {
   });
 }
 
+function runChallengeCode(lessonId) {
+  const code = document.getElementById('challengeCode').value;
+  const output = document.getElementById('challengeOutput');
+  saveCodeState(lessonId + '_challenge', code);
+  if (!code.trim()) { output.innerHTML = '<span class="output-error">Write some code first!</span>'; playSound('error'); return; }
+  try {
+    const result = simulatePython(code);
+    output.innerHTML = `<span class="output-success">${escapeHtml(result)}</span>`;
+    playSound('pop');
+  } catch (err) {
+    output.innerHTML = `<span class="output-error">Error: ${escapeHtml(err.message)}</span>`;
+    playSound('error');
+  }
+}
+
+function runAssignmentCode(lessonId, assignIndex) {
+  const code = document.getElementById('assignCode' + assignIndex)?.value || '';
+  const output = document.getElementById('assignOutput' + assignIndex);
+  saveCodeState(lessonId + '_a' + assignIndex, code);
+  if (!code.trim()) { output.innerHTML = '<span class="output-error">Write some code first!</span>'; playSound('error'); return; }
+  try {
+    const result = simulatePython(code);
+    output.innerHTML = `<span class="output-success">${escapeHtml(result)}</span>`;
+    playSound('pop');
+  } catch (err) {
+    output.innerHTML = `<span class="output-error">Error: ${escapeHtml(err.message)}</span>`;
+    playSound('error');
+  }
+}
+
 function checkChallenge(lessonId) {
   let lesson = null;
   for (const w of WEEKS) { lesson = w.lessons.find(l => l.id === lessonId); if (lesson) break; }
@@ -773,8 +807,8 @@ function checkChallenge(lessonId) {
     state.todayChallenges++;
     saveState();
     playSound('success');
-    // Re-render to show unlocked quiz
-    setTimeout(() => renderLessonTabContent(lesson), 800);
+    // Re-render to show unlocked quiz tab
+    setTimeout(() => renderLessonDetail(lesson), 800);
   } else {
     output.innerHTML = `<span class="output-error">❌ ${result.message}<br><small>Fix your code and try again!</small></span>`;
     playSound('error');
@@ -1031,6 +1065,7 @@ function runPlayground() {
   const code = document.getElementById('playgroundCode').value;
   const output = document.getElementById('playgroundOutput');
   state.todayPlayground = true;
+  state.playgroundRuns = (state.playgroundRuns || 0) + 1;
   saveState();
   renderDailyQuest();
 
@@ -1045,11 +1080,26 @@ function runPlayground() {
 }
 
 // ==================== PYTHON SIMULATOR ====================
-function simulatePython(code) {
+function simulatePython(code, inputValues) {
   let output = [];
   let variables = {};
   let userFunctions = {};
+  let inputQueue = inputValues ? [...inputValues] : [];
+  let inputIndex = 0;
   const lines = code.split('\n');
+
+  function findOperatorOutsideStrings(str, op) {
+    let inStr = false, strChar = '', depth = 0;
+    for (let i = 0; i < str.length; i++) {
+      const c = str[i];
+      if (inStr) { if (c === strChar && str[i-1] !== '\\') inStr = false; continue; }
+      if (c === '"' || c === "'") { inStr = true; strChar = c; continue; }
+      if ('([{'.includes(c)) { depth++; continue; }
+      if (')]}'.includes(c)) { depth--; continue; }
+      if (depth === 0 && c === op && i > 0 && i < str.length - 1 && str[i-1] !== '*' && str[i+1] !== '*') return i;
+    }
+    return -1;
+  }
 
   function evaluate(expr) {
     expr = expr.trim();
@@ -1083,6 +1133,12 @@ function simulatePython(code) {
     const funcMatch = expr.match(/^(\w+(?:\.\w+)*)\((.*)?\)$/s);
     if (funcMatch) {
       const fname = funcMatch[1], argsStr = funcMatch[2] || '';
+      if (fname === 'input') {
+        const promptMsg = argsStr ? evaluate(argsStr) : '';
+        if (inputQueue.length > inputIndex) return inputQueue[inputIndex++];
+        const userInput = window.prompt(promptMsg || 'Enter input:');
+        return userInput !== null ? userInput : '';
+      }
       if (fname === 'len') { const a = evaluate(argsStr); return a.length !== undefined ? a.length : String(a).length; }
       if (fname === 'int') return parseInt(evaluate(argsStr));
       if (fname === 'float') return parseFloat(evaluate(argsStr));
@@ -1148,9 +1204,10 @@ function simulatePython(code) {
       return typeof obj === 'string' ? obj.slice(start, end) : obj.slice(start, end);
     }
 
-    const strMul = expr.match(/^(.+?)\s*\*\s*(.+)$/);
-    if (strMul) {
-      const left = evaluate(strMul[1]), right = evaluate(strMul[2]);
+    // String multiplication / numeric multiply — find * operator outside quotes
+    const mulIdx = findOperatorOutsideStrings(expr, '*');
+    if (mulIdx > 0) {
+      const left = evaluate(expr.slice(0, mulIdx).trim()), right = evaluate(expr.slice(mulIdx + 1).trim());
       if (typeof left === 'string' && typeof right === 'number') return left.repeat(right);
       if (typeof left === 'number' && typeof right === 'string') return right.repeat(left);
       if (typeof left === 'number' && typeof right === 'number') return left * right;
@@ -1164,6 +1221,7 @@ function simulatePython(code) {
         if (typeof v === 'string') jsExpr = jsExpr.replace(re, `"${v}"`);
         else if (typeof v === 'number' || typeof v === 'boolean') jsExpr = jsExpr.replace(re, String(v));
       }
+      if (/\b(print|alert|confirm|prompt|eval)\s*\(/.test(jsExpr)) throw new Error('blocked');
       return Function('"use strict"; return (' + jsExpr + ')')();
     } catch {}
     return expr;
@@ -1245,6 +1303,7 @@ function simulatePython(code) {
       return { skip: idx + 1 + body.length };
     }
 
+    if (line === 'print()') { output.push(''); return null; }
     const printMatch = line.match(/^print\((.+)\)$/s);
     if (printMatch) {
       const argsStr = printMatch[1];
@@ -1361,29 +1420,148 @@ function renderProjects() {
   grid.innerHTML = PROJECTS.map((p, i) => {
     const unlocked = isWeekUnlocked(p.week);
     const completed = state.completedProjects.includes(p.id);
+    const hasSaved = state.savedCode && state.savedCode['project_' + p.id];
     return `<div class="project-card${!unlocked ? ' locked' : ''} pop-in" style="--delay:${i * 0.08}s">
       <div class="project-icon float">${p.icon}</div>
       <div class="project-title">${p.title}</div>
       <span class="project-difficulty difficulty-${p.difficulty}">${p.difficulty}</span>
       <div class="project-desc">${p.description}</div>
       <div class="project-requirements">Week ${p.week} ${!unlocked ? '🔒' : ''} | ⚡ ${p.xp} XP</div>
-      ${unlocked && !completed ? `<button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="playSound('click'); startProject('${p.id}')">🚀 Start Project</button>` : ''}
+      ${unlocked && !completed ? `<button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="playSound('click'); openProject('${p.id}')">${hasSaved ? '📝 Continue' : '🚀 Start'} Project</button>` : ''}
       ${completed ? '<div style="color:var(--success);margin-top:12px;font-weight:700">✅ Completed</div>' : ''}
     </div>`;
   }).join('');
 }
 
-function startProject(projectId) {
+function openProject(projectId) {
   const project = PROJECTS.find(p => p.id === projectId);
   if (!project) return;
-  showPage('playground');
-  const textarea = document.getElementById('playgroundCode');
-  if (textarea) {
-    textarea.value = `# Project: ${project.title}\n# ${project.description}\n# Difficulty: ${project.difficulty}\n\n# Start coding your project here!\n\n`;
-    textarea.focus();
-  }
   playSound('whoosh');
-  showToast('Project Started!', `Working on: ${project.title}`);
+  const savedCode = (state.savedCode && state.savedCode['project_' + projectId]) || project.starter || '';
+  const completed = state.completedProjects.includes(projectId);
+  const hintsRevealed = (state.hintsUsed && state.hintsUsed['project_' + projectId]) || 0;
+
+  const overlay = document.getElementById('project-overlay');
+  const detail = document.getElementById('projectDetail');
+  detail.innerHTML = `
+    <h2>${project.icon} ${project.title}</h2>
+    <div class="lesson-meta" style="margin-bottom:16px">
+      <span class="project-difficulty difficulty-${project.difficulty}">${project.difficulty}</span>
+      <span class="lesson-xp-badge">⚡ ${project.xp} XP</span>
+      ${completed ? '<span style="color:var(--success);font-size:0.85rem;font-weight:700">✅ Completed</span>' : ''}
+    </div>
+    <div class="project-brief">
+      <h4>📋 Your Mission</h4>
+      <p>${project.description}</p>
+      ${project.requirements ? `<div class="project-requirements-list"><strong>Requirements:</strong><ul>${project.requirements.map(r => `<li>${r}</li>`).join('')}</ul></div>` : ''}
+    </div>
+    <div class="project-hints-section">
+      <h4>💡 Hints <span style="color:var(--text-dim);font-size:0.8rem">(${Math.min(hintsRevealed, (project.hints || []).length)}/${(project.hints || []).length} revealed)</span></h4>
+      <div class="project-hints" id="projectHints">
+        ${(project.hints || []).map((h, i) => {
+          if (i < hintsRevealed) return `<div class="project-hint revealed"><span class="hint-num">Hint ${i+1}:</span> ${h}</div>`;
+          if (i === hintsRevealed) return `<button class="btn btn-hint" onclick="revealProjectHint('${projectId}', ${i})">🔓 Reveal Hint ${i+1}</button>`;
+          return `<div class="project-hint locked">🔒 Hint ${i+1} — reveal previous hint first</div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="project-editor">
+      <h4>💻 Your Code</h4>
+      <textarea class="code-input project-code" id="projectCode" placeholder="# Start coding your project here..." spellcheck="false">${savedCode}</textarea>
+      <div class="challenge-actions">
+        <button class="btn btn-run" onclick="playSound('click'); runProjectCode('${projectId}')">▶️ Run</button>
+        ${!completed && project.validator ? `<button class="btn btn-primary" onclick="playSound('click'); submitProject('${projectId}')">✅ Submit</button>` : ''}
+        <button class="btn btn-secondary" onclick="document.getElementById('projectCode').value=''; saveCodeState('project_${projectId}', '')">🗑️ Clear</button>
+      </div>
+      <div class="output-area" id="projectOutput"></div>
+    </div>`;
+  overlay.classList.remove('hidden');
+
+  setTimeout(() => {
+    const textarea = document.getElementById('projectCode');
+    if (textarea) {
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const start = textarea.selectionStart;
+          textarea.value = textarea.value.substring(0, start) + '    ' + textarea.value.substring(textarea.selectionEnd);
+          textarea.selectionStart = textarea.selectionEnd = start + 4;
+        }
+        if (e.key === 'Enter') {
+          const pos = textarea.selectionStart;
+          const before = textarea.value.substring(0, pos);
+          const currentLine = before.split('\n').pop();
+          const indent = currentLine.match(/^\s*/)[0];
+          if (currentLine.trimEnd().endsWith(':')) {
+            e.preventDefault();
+            const newIndent = indent + '    ';
+            textarea.value = before + '\n' + newIndent + textarea.value.substring(pos);
+            textarea.selectionStart = textarea.selectionEnd = pos + 1 + newIndent.length;
+          }
+        }
+      });
+      textarea.addEventListener('input', () => saveCodeState('project_' + projectId, textarea.value));
+    }
+  }, 50);
+}
+
+function closeProjectOverlay() {
+  document.getElementById('project-overlay').classList.add('hidden');
+}
+
+function revealProjectHint(projectId, hintIndex) {
+  if (!state.hintsUsed) state.hintsUsed = {};
+  state.hintsUsed['project_' + projectId] = hintIndex + 1;
+  saveState();
+  playSound('pop');
+  openProject(projectId);
+}
+
+function runProjectCode(projectId) {
+  const code = document.getElementById('projectCode').value;
+  const output = document.getElementById('projectOutput');
+  saveCodeState('project_' + projectId, code);
+  if (!code.trim()) { output.innerHTML = '<span class="output-error">Write some code first!</span>'; playSound('error'); return; }
+  try {
+    const result = simulatePython(code);
+    output.innerHTML = `<span class="output-success">${escapeHtml(result)}</span>`;
+    playSound('pop');
+  } catch (err) {
+    output.innerHTML = `<span class="output-error">Error: ${escapeHtml(err.message)}</span>`;
+    playSound('error');
+  }
+}
+
+function submitProject(projectId) {
+  const project = PROJECTS.find(p => p.id === projectId);
+  if (!project || !project.validator) return;
+  const code = document.getElementById('projectCode').value;
+  const output = document.getElementById('projectOutput');
+  saveCodeState('project_' + projectId, code);
+  if (!code.trim()) { output.innerHTML = '<span class="output-error">Write some code first!</span>'; playSound('error'); return; }
+  const result = project.validator(code);
+  if (result.success) {
+    output.innerHTML = `<span class="output-success">${result.message}</span>`;
+    if (!state.completedProjects.includes(projectId)) {
+      state.completedProjects.push(projectId);
+      state.projectsCompleted++;
+      state.totalXP += project.xp;
+      state.todayProject = true;
+      saveState();
+      showXPPopup('+' + project.xp + ' XP!');
+      playSound('achievement');
+      launchConfetti();
+      checkNewAchievements();
+      updatePlayerInfo();
+      renderDashboard();
+      renderProjects();
+    } else {
+      playSound('success');
+    }
+  } else {
+    output.innerHTML = `<span class="output-error">❌ ${result.message}<br><small>Keep working on it!</small></span>`;
+    playSound('error');
+  }
 }
 
 // ==================== LEADERBOARD ====================
@@ -1799,45 +1977,159 @@ function renderTournament() {
   const standings = document.getElementById('tournamentStandings');
   if (!info || !standings) return;
 
+  const roundsDone = state.tournamentRound || 0;
+  const totalRounds = TOURNAMENT_DATA.rounds;
+
   info.innerHTML = `
     <div class="tournament-status">
-      <div class="tournament-stat"><div class="t-val">${TOURNAMENT_DATA.rounds}</div><div class="t-lbl">Rounds</div></div>
+      <div class="tournament-stat"><div class="t-val">${roundsDone}/${totalRounds}</div><div class="t-lbl">Rounds Done</div></div>
       <div class="tournament-stat"><div class="t-val">🥇 ${TOURNAMENT_DATA.xpPrizes.first}</div><div class="t-lbl">1st Prize XP</div></div>
       <div class="tournament-stat"><div class="t-val">🥈 ${TOURNAMENT_DATA.xpPrizes.second}</div><div class="t-lbl">2nd Prize XP</div></div>
       <div class="tournament-stat"><div class="t-val">🥉 ${TOURNAMENT_DATA.xpPrizes.third}</div><div class="t-lbl">3rd Prize XP</div></div>
     </div>
-    <button class="btn btn-primary btn-lg" style="width:100%" onclick="playSound('whoosh'); enterTournament()">🏆 Enter Tournament</button>`;
+    <div class="tournament-progress-text" style="text-align:center;margin:8px 0;color:var(--text-dim);font-size:0.85rem">
+      ${roundsDone >= totalRounds ? '🏆 All rounds complete! Reset to play again.' : `Round ${roundsDone + 1} of ${totalRounds}`}
+    </div>
+    ${roundsDone >= totalRounds ?
+      `<button class="btn btn-secondary btn-lg" style="width:100%" onclick="playSound('click'); resetTournament()">🔄 Reset Tournament</button>` :
+      `<button class="btn btn-primary btn-lg" style="width:100%" onclick="playSound('whoosh'); enterTournament()">⚔️ Start Round ${roundsDone + 1}</button>`}`;
 
-  // Simulated standings
+  const botScores = LEADERBOARD_BOTS.slice(0, 8).map(b => ({
+    name: b.name, avatar: b.avatar,
+    score: Math.max(0, Math.floor(b.xp * 0.15) + (b.xp % 7) * 3)
+  }));
   const players = [
-    ...LEADERBOARD_BOTS.slice(0, 8).map(b => ({ name: b.name, avatar: b.avatar, score: Math.floor(Math.random() * 500 + 200) })),
-    { name: state.name || 'You', avatar: state.avatar, score: state.tournamentScore || Math.floor(state.totalXP * 0.3) }
+    ...botScores,
+    { name: state.name || 'You', avatar: state.avatar, score: state.tournamentScore || 0, isPlayer: true }
   ].sort((a, b) => b.score - a.score);
 
   standings.innerHTML = players.map((p, i) => {
     const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
-    return `<div class="tournament-standing">
+    return `<div class="tournament-standing${p.isPlayer ? ' is-you' : ''}">
       <div class="rank ${rankClass}">${medal}</div>
       <span style="font-size:1.3rem">${p.avatar}</span>
-      <span class="t-name">${p.name}</span>
+      <span class="t-name">${p.isPlayer ? '⭐ YOU' : p.name}</span>
       <span class="t-score">${p.score} pts</span>
     </div>`;
   }).join('');
 }
 
 function enterTournament() {
-  // Tournament: run 3 quick duels in sequence, accumulate points
-  const xpEarned = 10 + Math.floor(Math.random() * 20);
-  state.tournamentScore = (state.tournamentScore || 0) + xpEarned;
-  state.totalXP += xpEarned;
+  const roundsDone = state.tournamentRound || 0;
+  if (roundsDone >= TOURNAMENT_DATA.rounds) return;
+
+  let diff = 'easy';
+  if (state.totalXP >= 300) diff = 'medium';
+  if (state.totalXP >= 800) diff = 'hard';
+  const challenges = DUEL_CHALLENGES[diff];
+  const challenge = challenges[roundsDone % challenges.length];
+
+  const arena = document.getElementById('tournamentArena');
+  if (!arena) return;
+  arena.classList.remove('hidden');
+  let timeLeft = challenge.timeLimit;
+  arena.innerHTML = `
+    <div class="duel-arena tournament-round">
+      <div class="duel-header">
+        <h3>🏆 Round ${roundsDone + 1}: ${challenge.title}</h3>
+        <span style="font-size:0.85rem;color:var(--text-dim)">${diff.toUpperCase()}</span>
+      </div>
+      <div class="duel-timer" id="tournamentTimer">${timeLeft}s</div>
+      <div class="duel-challenge-box">
+        <strong>Challenge:</strong> ${challenge.description}<br>
+        <small style="color:var(--text-dim)">💡 ${challenge.hint}</small>
+      </div>
+      <textarea class="duel-code-area" id="tournamentCode" placeholder="# Solve it!" spellcheck="false"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary" style="flex:1" onclick="submitTournamentRound('${challenge.id}')">🚀 Submit</button>
+      </div>
+      <div id="tournamentResult"></div>
+    </div>`;
+
+  clearInterval(window._tournamentTimer);
+  window._tournamentTimer = setInterval(() => {
+    timeLeft--;
+    const display = document.getElementById('tournamentTimer');
+    if (display) display.textContent = timeLeft + 's';
+    if (timeLeft <= 10 && display) display.style.animation = 'pulse 0.5s infinite';
+    if (timeLeft <= 0) {
+      clearInterval(window._tournamentTimer);
+      submitTournamentRound(challenge.id, true);
+    }
+  }, 1000);
+  arena.scrollIntoView({ behavior: 'smooth' });
+}
+
+function submitTournamentRound(challengeId, timedOut) {
+  clearInterval(window._tournamentTimer);
+  const code = document.getElementById('tournamentCode')?.value || '';
+  const challenge = [...DUEL_CHALLENGES.easy, ...DUEL_CHALLENGES.medium, ...DUEL_CHALLENGES.hard].find(c => c.id === challengeId);
+  const resultDiv = document.getElementById('tournamentResult');
+
+  let correct = false;
+  if (!timedOut && code.trim() && challenge) {
+    const r = challenge.validator(code);
+    correct = r.success;
+  }
+
+  const pointsEarned = correct ? challenge.xp : 0;
+  state.tournamentScore = (state.tournamentScore || 0) + pointsEarned;
+  state.tournamentRound = (state.tournamentRound || 0) + 1;
+  if (correct) state.totalXP += pointsEarned;
   saveState();
-  showXPPopup('+' + xpEarned + ' Tournament XP!');
-  playSound('success');
-  showToast('🏆 Tournament Round Complete!', `+${xpEarned} points! Your total: ${state.tournamentScore} pts`);
+
+  if (correct) {
+    resultDiv.innerHTML = `<div class="duel-result win">✅ Correct! +${pointsEarned} pts</div>`;
+    playSound('success');
+    showXPPopup('+' + pointsEarned + ' XP!');
+  } else {
+    resultDiv.innerHTML = `<div class="duel-result lose">❌ ${timedOut ? "Time's up!" : 'Incorrect.'} +0 pts</div>`;
+    playSound('error');
+  }
+
+  const roundsDone = state.tournamentRound;
+  if (roundsDone >= TOURNAMENT_DATA.rounds) {
+    const finalPlace = getFinalTournamentPlace();
+    const prizes = TOURNAMENT_DATA.xpPrizes;
+    let bonus = 0;
+    if (finalPlace === 1) bonus = prizes.first;
+    else if (finalPlace === 2) bonus = prizes.second;
+    else if (finalPlace === 3) bonus = prizes.third;
+    if (bonus > 0) {
+      state.totalXP += bonus;
+      saveState();
+      setTimeout(() => {
+        launchConfetti();
+        playSound('achievement');
+        showToast('🏆 Tournament Complete!', `You placed #${finalPlace}! +${bonus} bonus XP!`);
+        showXPPopup('+' + bonus + ' Bonus!');
+      }, 800);
+    } else {
+      setTimeout(() => showToast('🏆 Tournament Complete!', `You placed #${finalPlace}. Keep practicing!`), 800);
+    }
+  }
+
+  setTimeout(() => {
+    document.getElementById('tournamentArena').classList.add('hidden');
+    renderTournament();
+    updatePlayerInfo();
+    renderLeaderboard();
+  }, 1500);
+}
+
+function getFinalTournamentPlace() {
+  const botScores = LEADERBOARD_BOTS.slice(0, 8).map(b => Math.max(0, Math.floor(b.xp * 0.15) + (b.xp % 7) * 3));
+  const myScore = state.tournamentScore || 0;
+  return botScores.filter(s => s > myScore).length + 1;
+}
+
+function resetTournament() {
+  state.tournamentScore = 0;
+  state.tournamentRound = 0;
+  saveState();
   renderTournament();
-  renderLeaderboard();
-  updatePlayerInfo();
+  playSound('whoosh');
 }
 
 // ==================== PARENT DASHBOARD ====================
