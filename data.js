@@ -34,6 +34,61 @@ const LEADERBOARD_BOTS = [
   { name: 'NewbieNova', avatar: '🌟', xp: 45, streak: 1 },
 ];
 
+// Python syntax helpers for validators
+function pyCheck(code) {
+  const lines = code.split('\n').map(l => l.trimEnd());
+  return {
+    has: (kw) => code.includes(kw),
+    count: (pat) => (code.match(pat) || []).length,
+    // Check that keyword lines end with colon (if:, for:, while:, def:, else:, elif:, class:, try:, except:)
+    colonsOk() {
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        if (/^(if|elif)\s+/.test(trimmed) && !trimmed.endsWith(':')) return false;
+        if (/^else\s*/.test(trimmed) && !trimmed.endsWith(':')) return false;
+        if (/^(for|while)\s+/.test(trimmed) && !trimmed.endsWith(':')) return false;
+        if (/^def\s+/.test(trimmed) && !trimmed.endsWith(':')) return false;
+        if (/^class\s+/.test(trimmed) && !trimmed.endsWith(':')) return false;
+        if (/^try\s*/.test(trimmed) && !trimmed.endsWith(':')) return false;
+        if (/^except/.test(trimmed) && !trimmed.endsWith(':')) return false;
+      }
+      return true;
+    },
+    // Check balanced parens
+    parensOk() {
+      let depth = 0;
+      for (const ch of code) {
+        if (ch === '(') depth++;
+        else if (ch === ')') depth--;
+        if (depth < 0) return false;
+      }
+      return depth === 0;
+    },
+    // Check balanced brackets
+    bracketsOk() {
+      let depth = 0;
+      for (const ch of code) {
+        if (ch === '[') depth++;
+        else if (ch === ']') depth--;
+        if (depth < 0) return false;
+      }
+      return depth === 0;
+    },
+    // Check print() has parens
+    printOk() {
+      if (!code.includes('print')) return true;
+      return /print\s*\(/.test(code);
+    },
+    // Basic syntax check combining the above
+    syntaxOk() {
+      return this.colonsOk() && this.parensOk() && this.bracketsOk() && this.printOk();
+    }
+  };
+}
+
+const SYNTAX_ERR = 'Check your Python syntax! Make sure colons (:) are at the end of if/for/while/def lines, parentheses () are balanced, and print uses print().';
+
 const WEEKS = [
   {
     id: 1,
@@ -61,7 +116,9 @@ const WEEKS = [
           prompt: 'Write a program that prints your name and your age on two separate lines. Use two print() statements.',
           hint: 'Use print("Your Name") on the first line and print("Your Age") on the second line.',
           validator: (code) => {
-            const prints = (code.match(/print\s*\(/g) || []).length;
+            const py = pyCheck(code);
+            if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR };
+            const prints = py.count(/print\s*\(/g);
             return prints >= 2 ? { success: true, message: '🎉 Awesome! You used multiple print statements!' } : { success: false, message: 'Try using at least 2 print() statements.' };
           }
         }
@@ -95,14 +152,22 @@ lives = <span class="code-number">3</span>
 
 <span class="code-comment"># You can change variables!</span>
 lives = lives - <span class="code-number">1</span>
-<span class="code-func">print</span>(<span class="code-string">"Lives remaining:"</span>, lives)  <span class="code-comment"># Shows: 2</span></div>
+<span class="code-func">print</span>(<span class="code-string">"Lives remaining:"</span>, lives)  <span class="code-comment"># Shows: 2</span>
+
+<span class="code-comment"># Quick math with variables</span>
+coins = <span class="code-number">17</span>
+packs = coins // <span class="code-number">5</span>    <span class="code-comment"># Integer division: 3 (whole packs you can buy)</span>
+leftover = coins % <span class="code-number">5</span>  <span class="code-comment"># Remainder (modulo): 2 coins left over</span>
+<span class="code-func">print</span>(<span class="code-string">"Packs:"</span>, packs, <span class="code-string">"Leftover:"</span>, leftover)</div>
         `,
         challenge: {
           prompt: 'Create three variables: your_name (text), your_age (number), and favorite_subject (text). Then print all three using print().',
           hint: 'Remember: text goes in quotes "like this", numbers don\'t need quotes.',
           validator: (code) => {
-            const hasVars = code.includes('=') && (code.match(/=/g) || []).length >= 3;
-            const hasPrint = code.includes('print');
+            const py = pyCheck(code);
+            if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR };
+            const hasVars = py.has('=') && py.count(/(?<!=)=(?!=)/g) >= 3;
+            const hasPrint = py.count(/print\s*\(/g) >= 1;
             return hasVars && hasPrint ? { success: true, message: '🎉 Great job creating and using variables!' } : { success: false, message: 'Make sure you create 3 variables with = and use print().' };
           }
         }
@@ -119,9 +184,14 @@ lives = lives - <span class="code-number">1</span>
           <div class="code-block"><span class="code-func">print</span>(<span class="code-number">10</span> + <span class="code-number">5</span>)   <span class="code-comment"># Addition: 15</span>
 <span class="code-func">print</span>(<span class="code-number">10</span> - <span class="code-number">3</span>)   <span class="code-comment"># Subtraction: 7</span>
 <span class="code-func">print</span>(<span class="code-number">4</span> * <span class="code-number">6</span>)    <span class="code-comment"># Multiplication: 24</span>
-<span class="code-func">print</span>(<span class="code-number">20</span> / <span class="code-number">4</span>)   <span class="code-comment"># Division: 5.0</span>
+<span class="code-func">print</span>(<span class="code-number">20</span> / <span class="code-number">4</span>)   <span class="code-comment"># Division: 5.0 (always gives a decimal)</span>
+<span class="code-func">print</span>(<span class="code-number">17</span> // <span class="code-number">5</span>)  <span class="code-comment"># Integer division: 3 (drops the decimal)</span>
 <span class="code-func">print</span>(<span class="code-number">2</span> ** <span class="code-number">3</span>)   <span class="code-comment"># Power: 8 (2 to the power of 3)</span>
-<span class="code-func">print</span>(<span class="code-number">17</span> % <span class="code-number">5</span>)   <span class="code-comment"># Remainder: 2</span></div>
+<span class="code-func">print</span>(<span class="code-number">17</span> % <span class="code-number">5</span>)   <span class="code-comment"># Remainder (modulo): 2</span></div>
+          <h3>Order of Operations ⚖️</h3>
+          <p>Python follows math rules: <strong>parentheses first</strong>, then ** (power), then * / // %, then + -</p>
+          <div class="code-block"><span class="code-func">print</span>(<span class="code-number">10</span> + <span class="code-number">5</span> * <span class="code-number">2</span>)    <span class="code-comment"># 20, not 30! (5*2 first, then +10)</span>
+<span class="code-func">print</span>((<span class="code-number">10</span> + <span class="code-number">5</span>) * <span class="code-number">2</span>)  <span class="code-comment"># 30 (parentheses first!)</span></div>
           <h3>Math + Variables = Power! 💪</h3>
           <div class="code-block"><span class="code-comment"># Calculate the area of a rectangle</span>
 width = <span class="code-number">8</span>
@@ -138,8 +208,10 @@ fahrenheit = (celsius * <span class="code-number">9</span>/<span class="code-num
           prompt: 'Write a program that calculates the area of a triangle. Create variables for base and height, then calculate area = (base * height) / 2 and print the result.',
           hint: 'area = (base * height) / 2',
           validator: (code) => {
-            const hasCalc = code.includes('*') && code.includes('/');
-            const hasPrint = code.includes('print');
+            const py = pyCheck(code);
+            if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR };
+            const hasCalc = py.has('*') && py.has('/');
+            const hasPrint = py.count(/print\s*\(/g) >= 1;
             return hasCalc && hasPrint ? { success: true, message: '🎉 Math wizard! You calculated the triangle area!' } : { success: false, message: 'Use multiplication (*) and division (/) to calculate the area, then print it.' };
           }
         }
@@ -164,13 +236,23 @@ next_year = age + <span class="code-number">1</span>
 <span class="code-comment"># Shortcut - do it in one line!</span>
 height = <span class="code-func">int</span>(<span class="code-func">input</span>(<span class="code-string">"Your height in cm? "</span>))
 <span class="code-func">print</span>(<span class="code-string">"That's"</span>, height / <span class="code-number">100</span>, <span class="code-string">"meters!"</span>)</div>
+          <h3>Watch Out! ⚠️</h3>
+          <p>If the user types something that isn't a number and you try to convert it with <strong>int()</strong>, Python throws a <strong>ValueError</strong>:</p>
+          <div class="code-block"><span class="code-comment"># This would crash!</span>
+<span class="code-comment"># int("hello")  → ValueError: invalid literal</span>
+
+<span class="code-comment"># Always make sure you're converting actual numbers</span>
+age = <span class="code-func">int</span>(<span class="code-string">"13"</span>)    <span class="code-comment"># Works! "13" is a number as text</span>
+<span class="code-comment"># int("thirteen") → ValueError! Not a number</span></div>
         `,
         challenge: {
           prompt: 'Create a program that asks for the user\'s name and favorite number. Then print a message using both. (In the playground, use variables instead of input() since we can\'t type in real-time.)',
           hint: 'Use name = "SomeName" and number = 7 as placeholders.',
           validator: (code) => {
-            const hasVars = (code.match(/=/g) || []).length >= 2;
-            const hasPrint = code.includes('print');
+            const py = pyCheck(code);
+            if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR };
+            const hasVars = py.count(/(?<!=)=(?!=)/g) >= 2;
+            const hasPrint = py.count(/print\s*\(/g) >= 1;
             return hasVars && hasPrint ? { success: true, message: '🎉 Interactive programs unlocked!' } : { success: false, message: 'Create at least 2 variables and use print().' };
           }
         }
@@ -202,14 +284,29 @@ fav_subject = <span class="code-string">"Math"</span>
 <span class="code-func">print</span>(<span class="code-string">"║"</span>)
 <span class="code-func">print</span>(<span class="code-string">"║ Years until 18:"</span>, <span class="code-number">18</span> - age)
 <span class="code-func">print</span>(<span class="code-string">"╚══════════════════════════╝"</span>)</div>
+          <h3>Pro Tips 🔥</h3>
+          <p><strong>String repetition:</strong> You can repeat text with *</p>
+          <div class="code-block"><span class="code-func">print</span>(<span class="code-string">"Hi"</span> * <span class="code-number">3</span>)        <span class="code-comment"># HiHiHi</span>
+<span class="code-func">print</span>(<span class="code-string">"="</span> * <span class="code-number">20</span>)       <span class="code-comment"># ==================== (great for borders!)</span></div>
+          <p><strong>3 ways to include variables in print:</strong></p>
+          <div class="code-block">name = <span class="code-string">"Alex"</span>
+score = <span class="code-number">95</span>
+<span class="code-comment"># Way 1: Commas (simplest)</span>
+<span class="code-func">print</span>(<span class="code-string">"Score:"</span>, score)
+<span class="code-comment"># Way 2: Concatenation (+) - must convert numbers!</span>
+<span class="code-func">print</span>(<span class="code-string">"Hello "</span> + name)
+<span class="code-comment"># Way 3: f-strings (most powerful!)</span>
+<span class="code-func">print</span>(<span class="code-string">f"</span><span class="code-string">{name} scored {score} points!"</span>)</div>
           <p>Now make your own version! Add more fields, change the design, make it yours!</p>
         `,
         challenge: {
           prompt: 'Create YOUR OWN bio card with at least 5 variables and a formatted output using print(). Make it creative!',
           hint: 'Use variables for your info and print() with border characters to make it look cool.',
           validator: (code) => {
-            const vars = (code.match(/=/g) || []).length;
-            const prints = (code.match(/print\s*\(/g) || []).length;
+            const py = pyCheck(code);
+            if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR };
+            const vars = py.count(/(?<!=)=(?!=)/g);
+            const prints = py.count(/print\s*\(/g);
             return vars >= 5 && prints >= 5 ? { success: true, message: '🎉🚀 Amazing! Your first project is complete! +50 XP!' } : { success: false, message: 'Use at least 5 variables and 5 print() statements to make your bio card.' };
           }
         }
@@ -254,14 +351,31 @@ password = <span class="code-string">"python123"</span>
     <span class="code-func">print</span>(<span class="code-string">"Access granted! 🔓"</span>)
 <span class="code-keyword">else</span>:
     <span class="code-func">print</span>(<span class="code-string">"Wrong password! 🔒"</span>)</div>
+          <h3>Combining Conditions: and, or, not</h3>
+          <div class="code-block">age = <span class="code-number">15</span>
+has_ticket = <span class="code-keyword">True</span>
+
+<span class="code-comment"># and - BOTH must be true</span>
+<span class="code-keyword">if</span> age >= <span class="code-number">13</span> <span class="code-keyword">and</span> has_ticket:
+    <span class="code-func">print</span>(<span class="code-string">"Welcome to the movie!"</span>)
+
+<span class="code-comment"># or - at least ONE must be true</span>
+<span class="code-keyword">if</span> age < <span class="code-number">5</span> <span class="code-keyword">or</span> age > <span class="code-number">65</span>:
+    <span class="code-func">print</span>(<span class="code-string">"Free ticket!"</span>)
+
+<span class="code-comment"># not - flips True to False</span>
+<span class="code-keyword">if</span> <span class="code-keyword">not</span> has_ticket:
+    <span class="code-func">print</span>(<span class="code-string">"Buy a ticket first!"</span>)</div>
         `,
         challenge: {
           prompt: 'Write a program that checks a temperature variable. If temp > 30, print "Hot!". If temp is between 15-30, print "Nice!". Otherwise print "Cold!".',
           hint: 'Use if, elif, else with comparison operators.',
           validator: (code) => {
-            const hasIf = code.includes('if');
-            const hasElse = code.includes('else');
-            const hasPrint = code.includes('print');
+            const py = pyCheck(code);
+            if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR };
+            const hasIf = py.has('if');
+            const hasElse = py.has('else');
+            const hasPrint = py.count(/print\s*\(/g) >= 1;
             return hasIf && hasElse && hasPrint ? { success: true, message: '🎉 Decision master! Your program can think!' } : { success: false, message: 'Use if/elif/else to check the temperature.' };
           }
         }
@@ -274,12 +388,20 @@ password = <span class="code-string">"python123"</span>
         tags: ['loops', 'for'],
         content: `
           <h3>Loops - Doing Things Repeatedly 🔄</h3>
-          <p>A <strong>for loop</strong> repeats code a certain number of times:</p>
-          <div class="code-block"><span class="code-comment"># Print numbers 1 to 5</span>
-<span class="code-keyword">for</span> i <span class="code-keyword">in</span> <span class="code-func">range</span>(<span class="code-number">1</span>, <span class="code-number">6</span>):
-    <span class="code-func">print</span>(i)
+          <p>A <strong>for loop</strong> repeats code a certain number of times. The <strong>range()</strong> function generates numbers:</p>
+          <div class="code-block"><span class="code-comment"># range(stop) - starts at 0</span>
+<span class="code-keyword">for</span> i <span class="code-keyword">in</span> <span class="code-func">range</span>(<span class="code-number">5</span>):
+    <span class="code-func">print</span>(i)  <span class="code-comment"># prints 0, 1, 2, 3, 4 (NOT 5!)</span>
 
-<span class="code-comment"># Countdown!</span>
+<span class="code-comment"># range(start, stop) - you pick the start</span>
+<span class="code-keyword">for</span> i <span class="code-keyword">in</span> <span class="code-func">range</span>(<span class="code-number">1</span>, <span class="code-number">6</span>):
+    <span class="code-func">print</span>(i)  <span class="code-comment"># prints 1, 2, 3, 4, 5</span>
+
+<span class="code-comment"># range(start, stop, step) - skip by step</span>
+<span class="code-keyword">for</span> i <span class="code-keyword">in</span> <span class="code-func">range</span>(<span class="code-number">2</span>, <span class="code-number">10</span>, <span class="code-number">3</span>):
+    <span class="code-func">print</span>(i)  <span class="code-comment"># prints 2, 5, 8 (goes up by 3)</span>
+
+<span class="code-comment"># Countdown with negative step!</span>
 <span class="code-keyword">for</span> i <span class="code-keyword">in</span> <span class="code-func">range</span>(<span class="code-number">5</span>, <span class="code-number">0</span>, -<span class="code-number">1</span>):
     <span class="code-func">print</span>(i)
 <span class="code-func">print</span>(<span class="code-string">"Blast off! 🚀"</span>)
@@ -302,9 +424,11 @@ number = <span class="code-number">7</span>
           prompt: 'Write a program that prints a multiplication table for the number 5 (5x1=5, 5x2=10, ... up to 5x10=50).',
           hint: 'Use for i in range(1, 11) and multiply 5 * i.',
           validator: (code) => {
-            const hasFor = code.includes('for');
-            const hasRange = code.includes('range');
-            const hasMult = code.includes('*');
+            const py = pyCheck(code);
+            if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR };
+            const hasFor = py.has('for');
+            const hasRange = py.has('range');
+            const hasMult = py.has('*');
             return hasFor && hasRange && hasMult ? { success: true, message: '🎉 Loop master! Multiplication tables are easy now!' } : { success: false, message: 'Use a for loop with range() and the * operator.' };
           }
         }
@@ -338,13 +462,35 @@ guesses = [<span class="code-number">3</span>, <span class="code-number">9</span
         <span class="code-func">print</span>(guess, <span class="code-string">"- Too high!"</span>)
     <span class="code-keyword">else</span>:
         <span class="code-func">print</span>(guess, <span class="code-string">"- You got it in"</span>, attempts, <span class="code-string">"tries!"</span>)</div>
+          <h3>Break & Continue 🛑</h3>
+          <p><strong>break</strong> exits the loop immediately. <strong>continue</strong> skips to the next round:</p>
+          <div class="code-block"><span class="code-comment"># break - stop the loop early</span>
+<span class="code-keyword">for</span> i <span class="code-keyword">in</span> <span class="code-func">range</span>(<span class="code-number">1</span>, <span class="code-number">100</span>):
+    <span class="code-keyword">if</span> i == <span class="code-number">5</span>:
+        <span class="code-func">print</span>(<span class="code-string">"Found 5, stopping!"</span>)
+        <span class="code-keyword">break</span>    <span class="code-comment"># exits the loop completely</span>
+    <span class="code-func">print</span>(i)  <span class="code-comment"># prints 1, 2, 3, 4</span>
+
+<span class="code-comment"># continue - skip this round</span>
+<span class="code-keyword">for</span> i <span class="code-keyword">in</span> <span class="code-func">range</span>(<span class="code-number">1</span>, <span class="code-number">6</span>):
+    <span class="code-keyword">if</span> i == <span class="code-number">3</span>:
+        <span class="code-keyword">continue</span>  <span class="code-comment"># skips 3</span>
+    <span class="code-func">print</span>(i)  <span class="code-comment"># prints 1, 2, 4, 5</span></div>
+          <p><strong>while True</strong> with break is a common pattern for "keep going until something happens":</p>
+          <div class="code-block"><span class="code-keyword">while</span> <span class="code-keyword">True</span>:
+    answer = <span class="code-func">input</span>(<span class="code-string">"Type 'quit' to exit: "</span>)
+    <span class="code-keyword">if</span> answer == <span class="code-string">"quit"</span>:
+        <span class="code-keyword">break</span>
+    <span class="code-func">print</span>(<span class="code-string">"You typed:"</span>, answer)</div>
         `,
         challenge: {
           prompt: 'Write a while loop that starts at 100 and counts down by 10s (100, 90, 80... 10). Print each number.',
           hint: 'Start with num = 100, loop while num >= 10, subtract 10 each time.',
           validator: (code) => {
-            const hasWhile = code.includes('while');
-            const hasPrint = code.includes('print');
+            const py = pyCheck(code);
+            if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR };
+            const hasWhile = py.has('while');
+            const hasPrint = py.count(/print\s*\(/g) >= 1;
             return hasWhile && hasPrint ? { success: true, message: '🎉 While loop pro! Countdown complete!' } : { success: false, message: 'Use a while loop and print().' };
           }
         }
@@ -363,8 +509,10 @@ colors = [<span class="code-string">"red"</span>, <span class="code-string">"blu
 scores = [<span class="code-number">95</span>, <span class="code-number">87</span>, <span class="code-number">92</span>, <span class="code-number">78</span>, <span class="code-number">100</span>]
 
 <span class="code-comment"># Access items (counting starts at 0!)</span>
-<span class="code-func">print</span>(colors[<span class="code-number">0</span>])   <span class="code-comment"># "red"</span>
-<span class="code-func">print</span>(colors[<span class="code-number">2</span>])   <span class="code-comment"># "green"</span>
+<span class="code-func">print</span>(colors[<span class="code-number">0</span>])    <span class="code-comment"># "red" (first item)</span>
+<span class="code-func">print</span>(colors[<span class="code-number">2</span>])    <span class="code-comment"># "green"</span>
+<span class="code-func">print</span>(colors[<span class="code-number">-1</span>])   <span class="code-comment"># "yellow" (last item!)</span>
+<span class="code-func">print</span>(colors[<span class="code-number">-2</span>])   <span class="code-comment"># "green" (second to last)</span>
 
 <span class="code-comment"># Add and remove</span>
 colors.append(<span class="code-string">"purple"</span>)
@@ -384,9 +532,11 @@ colors.remove(<span class="code-string">"red"</span>)
           prompt: 'Create a list of 5 numbers. Print the list, its length, the sum, and the average (sum divided by length).',
           hint: 'average = sum(my_list) / len(my_list)',
           validator: (code) => {
-            const hasList = code.includes('[') && code.includes(']');
-            const hasLen = code.includes('len');
-            const hasSum = code.includes('sum');
+            const py = pyCheck(code);
+            if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR };
+            const hasList = py.has('[') && py.has(']');
+            const hasLen = py.has('len');
+            const hasSum = py.has('sum');
             return hasList && hasLen && hasSum ? { success: true, message: '🎉 List master! You can handle collections of data!' } : { success: false, message: 'Create a list with [], use len() and sum().' };
           }
         }
@@ -400,6 +550,13 @@ colors.remove(<span class="code-string">"red"</span>)
         content: `
           <h3>🚀 Project: Number Guessing Game</h3>
           <p>Let's build a number guessing game that uses everything from this week!</p>
+          <h3>Importing Modules 📦</h3>
+          <p>Python has extra tools called <strong>modules</strong>. To use one, you write <strong>import</strong> at the top of your code. The <strong>random</strong> module gives you random numbers:</p>
+          <div class="code-block"><span class="code-keyword">import</span> random  <span class="code-comment"># must be at the top of your file!</span>
+
+<span class="code-func">print</span>(random.randint(<span class="code-number">1</span>, <span class="code-number">10</span>))   <span class="code-comment"># random number from 1 to 10</span>
+<span class="code-func">print</span>(random.choice([<span class="code-string">"heads"</span>, <span class="code-string">"tails"</span>]))  <span class="code-comment"># random pick from a list</span></div>
+          <h3>Putting It All Together</h3>
           <div class="code-block"><span class="code-keyword">import</span> random
 
 <span class="code-comment"># Generate a secret number between 1 and 20</span>
@@ -435,9 +592,11 @@ player_guesses = [<span class="code-number">10</span>, <span class="code-number"
           prompt: 'Create your own version of the guessing game! Use a list of guesses, a while or for loop, and if/else to check each guess.',
           hint: 'Use a secret number, loop through guesses, compare with if/elif/else.',
           validator: (code) => {
-            const hasLoop = code.includes('for') || code.includes('while');
-            const hasIf = code.includes('if');
-            const hasList = code.includes('[');
+            const py = pyCheck(code);
+            if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR };
+            const hasLoop = py.has('for') || py.has('while');
+            const hasIf = py.has('if');
+            const hasList = py.has('[');
             return hasLoop && hasIf && hasList ? { success: true, message: '🎉🚀 Incredible! You built a guessing game! +60 XP!' } : { success: false, message: 'Use a loop, if/else, and a list of guesses.' };
           }
         }
@@ -464,7 +623,7 @@ player_guesses = [<span class="code-number">10</span>, <span class="code-number"
 result = <span class="code-func">add</span>(<span class="code-number">5</span>, <span class="code-number">3</span>)
 <span class="code-func">print</span>(<span class="code-string">"5 + 3 ="</span>, result)</div>`,
         challenge: { prompt: 'Create a function called "calculate_area" that takes width and height as parameters and returns width * height. Call it with different values.', hint: 'def calculate_area(w, h): return w * h',
-          validator: (code) => { return code.includes('def') && code.includes('return') ? { success: true, message: '🎉 Function creator! Your code is reusable!' } : { success: false, message: 'Use def to create a function with return.' }; } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('return') ? { success: true, message: '🎉 Function creator! Your code is reusable!' } : { success: false, message: 'Use def to create a function with return.' }; } }
       },
       {
         id: 'w3l2', title: 'More Functions & Scope', description: 'Default values and scope rules', xp: 30, tags: ['functions'],
@@ -489,7 +648,7 @@ result = <span class="code-func">add</span>(<span class="code-number">5</span>, 
 
 <span class="code-func">print</span>(<span class="code-func">count_evens</span>([<span class="code-number">1</span>,<span class="code-number">2</span>,<span class="code-number">3</span>,<span class="code-number">4</span>,<span class="code-number">5</span>,<span class="code-number">6</span>]))  <span class="code-comment"># 3</span></div>`,
         challenge: { prompt: 'Create a function that takes a list of numbers and returns only the even ones. Hint: create a new list and append even numbers.', hint: 'def get_evens(nums): result = []; for n in nums: if n % 2 == 0: result.append(n); return result',
-          validator: (code) => { return code.includes('def') && code.includes('%') ? { success: true, message: '🎉 Advanced functions unlocked!' } : { success: false, message: 'Create a function using def, use % to check even numbers.' }; } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('%') ? { success: true, message: '🎉 Advanced functions unlocked!' } : { success: false, message: 'Create a function using def, use % to check even numbers.' }; } }
       },
       {
         id: 'w3l3', title: 'String Magic', description: 'Manipulate text like a pro', xp: 25, tags: ['strings'],
@@ -508,7 +667,7 @@ score = <span class="code-number">95</span>
 <span class="code-func">print</span>(<span class="code-string">f"Player <span class="code-number">{name}</span> scored <span class="code-number">{score}</span> points!"</span>)
 <span class="code-func">print</span>(<span class="code-string">f"Double score: <span class="code-number">{score * 2}</span>"</span>)</div>`,
         challenge: { prompt: 'Create a string with your full name. Print it in UPPER case, lower case, reversed, and count the letters (not spaces).', hint: 'reversed: name[::-1], count without spaces: len(name.replace(" ", ""))',
-          validator: (code) => { return code.includes('.upper') || code.includes('.lower') ? { success: true, message: '🎉 String wizard! Text bends to your will!' } : { success: false, message: 'Use .upper() and .lower() on your string.' }; } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('.upper') || py.has('.lower') ? { success: true, message: '🎉 String wizard! Text bends to your will!' } : { success: false, message: 'Use .upper() and .lower() on your string.' }; } }
       },
       {
         id: 'w3l4', title: 'Dictionaries', description: 'Key-value pairs for organized data', xp: 30, tags: ['data', 'dictionaries'],
@@ -527,7 +686,7 @@ player[<span class="code-string">"gold"</span>] = <span class="code-number">50</
 <span class="code-keyword">for</span> key, value <span class="code-keyword">in</span> player.items():
     <span class="code-func">print</span>(<span class="code-string">f"<span class="code-number">{key}</span>: <span class="code-number">{value}</span>"</span>)</div>`,
         challenge: { prompt: 'Create a dictionary for a game character with at least 4 properties. Print each property nicely formatted.', hint: 'character = {"name": "...", "class": "...", "hp": 100, "attack": 15}',
-          validator: (code) => { return code.includes('{') && code.includes(':') && code.includes('print') ? { success: true, message: '🎉 Dictionary master! Organized data FTW!' } : { success: false, message: 'Create a dictionary with {} and key:value pairs.' }; } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('{') && py.has(':') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '🎉 Dictionary master! Organized data FTW!' } : { success: false, message: 'Create a dictionary with {} and key:value pairs, and use print().' }; } }
       },
       {
         id: 'w3l5', title: 'Week 3 Project: Quiz Game', description: 'Build an interactive quiz', xp: 60, tags: ['project', 'functions', 'dictionaries'],
@@ -556,7 +715,7 @@ player[<span class="code-string">"gold"</span>] = <span class="code-number">50</
 
 <span class="code-func">run_quiz</span>(questions)</div>`,
         challenge: { prompt: 'Create your own quiz with at least 3 questions about math, science, or any subject you like! Use dictionaries for questions and a function to run the quiz.', hint: 'Follow the pattern above but with your own questions.',
-          validator: (code) => { return code.includes('def') && code.includes('{') && (code.match(/\{/g) || []).length >= 3 ? { success: true, message: '🎉🚀 Quiz Game complete! You built something awesome! +60 XP!' } : { success: false, message: 'Create a function and at least 3 question dictionaries.' }; } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('{') && py.count(/\{/g) >= 3 ? { success: true, message: '🎉🚀 Quiz Game complete! You built something awesome! +60 XP!' } : { success: false, message: 'Create a function and at least 3 question dictionaries.' }; } }
       }
     ]
   },
@@ -582,7 +741,7 @@ cards = [<span class="code-number">1</span>,<span class="code-number">2</span>,<
 random.shuffle(cards)
 <span class="code-func">print</span>(cards)</div>`,
         challenge: { prompt: 'Create a Rock-Paper-Scissors game where the computer picks randomly and you compare with a player choice.', hint: 'Use random.choice() for computer move, then compare with if/elif.',
-          validator: (code) => { return code.includes('random') && code.includes('if') ? { success: true, message: '🎉 Random master! Games are more fun now!' } : { success: false, message: 'Use random and if/else for game logic.' }; } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('random') && py.has('if') ? { success: true, message: '🎉 Random master! Games are more fun now!' } : { success: false, message: 'Use random and if/else for game logic.' }; } }
       },
       {
         id: 'w4l2', title: 'Text Adventure Basics', description: 'Create story-driven games', xp: 35, tags: ['games', 'adventure'],
@@ -608,7 +767,7 @@ random.shuffle(cards)
 
 <span class="code-func">start_adventure</span>()</div>`,
         challenge: { prompt: 'Create a mini text adventure with at least 3 rooms/choices. Use functions for each room.', hint: 'Create a function for each room, use if/else for choices.',
-          validator: (code) => { const defs = (code.match(/def /g) || []).length; return defs >= 3 ? { success: true, message: '🎉 Adventure creator! Your story comes alive!' } : { success: false, message: 'Create at least 3 functions (rooms) for your adventure.' }; } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; const defs = py.count(/def /g); return defs >= 3 ? { success: true, message: '🎉 Adventure creator! Your story comes alive!' } : { success: false, message: 'Create at least 3 functions (rooms) for your adventure.' }; } }
       },
       {
         id: 'w4l3', title: 'Math Battle Game', description: 'Academic game - Math challenges', xp: 35, tags: ['games', 'math', 'academic'],
@@ -635,7 +794,7 @@ random.shuffle(cards)
 
 <span class="code-func">math_battle</span>()</div>`,
         challenge: { prompt: 'Create a math game that generates random problems. Include +, -, and * operations. Track the score!', hint: 'Use random.randint for numbers, random.choice for operations.',
-          validator: (code) => { return code.includes('random') && code.includes('def') ? { success: true, message: '🎉 Math + Code = Genius! Academic game built!' } : { success: false, message: 'Use random and def to create your math game.' }; } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('random') && py.has('def') ? { success: true, message: '🎉 Math + Code = Genius! Academic game built!' } : { success: false, message: 'Use random and def to create your math game.' }; } }
       },
       {
         id: 'w4l4', title: 'Science Simulator', description: 'Physics & science in code', xp: 35, tags: ['games', 'science', 'academic'],
@@ -658,7 +817,7 @@ random.shuffle(cards)
 <span class="code-func">print</span>()
 <span class="code-func">drop_ball</span>(<span class="code-number">50</span>, <span class="code-number">1.6</span>)  <span class="code-comment"># Moon gravity!</span></div>`,
         challenge: { prompt: 'Create a simple physics simulator — maybe a bouncing ball, projectile motion, or planet orbit calculator.', hint: 'Use loops and math to simulate physical motion over time steps.',
-          validator: (code) => { return code.includes('def') && (code.includes('while') || code.includes('for')) ? { success: true, message: '🎉 Science + Code! You simulated physics!' } : { success: false, message: 'Create a function with a loop to simulate physics.' }; } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && (py.has('while') || py.has('for')) ? { success: true, message: '🎉 Science + Code! You simulated physics!' } : { success: false, message: 'Create a function with a loop to simulate physics.' }; } }
       },
       {
         id: 'w4l5', title: 'Week 4 Project: RPG Battle Game', description: 'Build a complete RPG battle', xp: 80, tags: ['project', 'games'],
@@ -691,7 +850,7 @@ hero = <span class="code-func">create_character</span>(<span class="code-string"
 dragon = <span class="code-func">create_character</span>(<span class="code-string">"Dragon"</span>, <span class="code-number">80</span>, <span class="code-number">25</span>)
 <span class="code-func">battle</span>(hero, dragon)</div>`,
         challenge: { prompt: 'Create your own RPG battle game! Add at least 2 characters with stats, a battle function with random damage, and a winner announcement.', hint: 'Use dictionaries for characters, random for damage, while loop for battle.',
-          validator: (code) => { const defs = (code.match(/def /g) || []).length; return defs >= 2 && code.includes('random') && code.includes('while') ? { success: true, message: '🎉🚀🏆 EPIC! You built an RPG battle game! +80 XP! You truly leveled up!' } : { success: false, message: 'Create at least 2 functions, use random and a while loop for the battle.' }; } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; const defs = py.count(/def /g); return defs >= 2 && py.has('random') && py.has('while') ? { success: true, message: '🎉🚀🏆 EPIC! You built an RPG battle game! +80 XP! You truly leveled up!' } : { success: false, message: 'Create at least 2 functions, use random and a while loop for the battle.' }; } }
       }
     ]
   },
@@ -714,7 +873,7 @@ dragon = <span class="code-func">create_character</span>(<span class="code-strin
 <span class="code-keyword">finally</span>:
     <span class="code-func">print</span>(<span class="code-string">"Done!"</span>)</div>`,
         challenge: { prompt: 'Write a function that safely divides two numbers. Use try/except to handle ZeroDivisionError.', hint: 'def safe_divide(a, b): try: return a/b except: return "Error"',
-          validator: (code) => code.includes('try') && code.includes('except') ? { success: true, message: '🎉 Error handler! Your code is bulletproof!' } : { success: false, message: 'Use try/except blocks.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('try') && py.has('except') ? { success: true, message: '🎉 Error handler! Your code is bulletproof!' } : { success: false, message: 'Use try/except blocks.' }; } } },
       { id: 'w5l2', title: 'List Comprehensions', description: 'Powerful one-liners', xp: 35, tags: ['advanced', 'lists'],
         content: `<h3>List Comprehensions ⚡</h3><p>Create lists in one line:</p>
           <div class="code-block"><span class="code-comment"># Regular way</span>
@@ -729,7 +888,7 @@ squares = [i ** <span class="code-number">2</span> <span class="code-keyword">fo
 evens = [i <span class="code-keyword">for</span> i <span class="code-keyword">in</span> <span class="code-func">range</span>(<span class="code-number">20</span>) <span class="code-keyword">if</span> i % <span class="code-number">2</span> == <span class="code-number">0</span>]
 <span class="code-func">print</span>(evens)</div>`,
         challenge: { prompt: 'Create a list comprehension that gives all numbers from 1-50 that are divisible by both 3 and 5.', hint: '[x for x in range(1,51) if x % 3 == 0 and x % 5 == 0]',
-          validator: (code) => code.includes('for') && code.includes('if') && code.includes('[') ? { success: true, message: '🎉 Comprehension master! One-liners are powerful!' } : { success: false, message: 'Use a list comprehension with for and if.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('if') && py.has('[') ? { success: true, message: '🎉 Comprehension master! One-liners are powerful!' } : { success: false, message: 'Use a list comprehension with for and if.' }; } } },
       { id: 'w5l3', title: 'Working with Data', description: 'Process and analyze data', xp: 35, tags: ['data', 'analysis'],
         content: `<h3>Data Processing 📊</h3><p>Python is great for working with data!</p>
           <div class="code-block">students = [
@@ -743,7 +902,7 @@ evens = [i <span class="code-keyword">for</span> i <span class="code-keyword">in
     avg = (s[<span class="code-string">"math"</span>] + s[<span class="code-string">"science"</span>]) / <span class="code-number">2</span>
     <span class="code-func">print</span>(<span class="code-string">f"{s['name']}: {avg}"</span>)</div>`,
         challenge: { prompt: 'Create a list of 5 student dictionaries with names and scores. Find and print the student with the highest average.', hint: 'Loop through, calculate average, track the max.',
-          validator: (code) => code.includes('for') && code.includes('{') && code.includes('print') ? { success: true, message: '🎉 Data analyst! You can process information!' } : { success: false, message: 'Create student dicts and loop to find the best.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('{') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '🎉 Data analyst! You can process information!' } : { success: false, message: 'Create student dicts and loop to find the best.' }; } } },
       { id: 'w5l4', title: 'Sorting & Filtering', description: 'Organize your data', xp: 30, tags: ['data', 'algorithms'],
         content: `<h3>Sort & Filter 🔍</h3>
           <div class="code-block">scores = [<span class="code-number">45</span>, <span class="code-number">92</span>, <span class="code-number">78</span>, <span class="code-number">31</span>, <span class="code-number">88</span>, <span class="code-number">65</span>]
@@ -758,7 +917,7 @@ evens = [i <span class="code-keyword">for</span> i <span class="code-keyword">in
 passing = [s <span class="code-keyword">for</span> s <span class="code-keyword">in</span> scores <span class="code-keyword">if</span> s >= <span class="code-number">60</span>]
 <span class="code-func">print</span>(<span class="code-string">"Passing:"</span>, passing)</div>`,
         challenge: { prompt: 'Create a list of numbers. Sort them, filter out negatives, and find the median (middle value).', hint: 'Sort first, then use len()//2 to find the middle index.',
-          validator: (code) => code.includes('sorted') || code.includes('.sort') ? { success: true, message: '🎉 Data organizer! Sorted and filtered!' } : { success: false, message: 'Use sorted() to sort your data.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('sorted') || py.has('.sort') ? { success: true, message: '🎉 Data organizer! Sorted and filtered!' } : { success: false, message: 'Use sorted() to sort your data.' }; } } },
       { id: 'w5l5', title: 'Week 5 Project: Grade Tracker', description: 'Build a grade management system', xp: 70, tags: ['project', 'data'],
         content: `<h3>🚀 Project: Grade Tracker App</h3><p>Build a system that tracks grades, calculates averages, and gives letter grades!</p>
           <div class="code-block"><span class="code-keyword">def</span> <span class="code-func">letter_grade</span>(score):
@@ -772,7 +931,7 @@ passing = [s <span class="code-keyword">for</span> s <span class="code-keyword">
         avg = <span class="code-func">sum</span>(s[<span class="code-string">"grades"</span>]) / <span class="code-func">len</span>(s[<span class="code-string">"grades"</span>])
         <span class="code-func">print</span>(<span class="code-string">f"{s['name']}: Avg={avg:.1f} Grade={letter_grade(avg)}"</span>)</div>`,
         challenge: { prompt: 'Build a grade tracker with at least 3 students, each with multiple grades. Calculate averages, assign letter grades, and find the class average.', hint: 'Use dictionaries for students, lists for grades, functions for logic.',
-          validator: (code) => { const defs = (code.match(/def /g) || []).length; return defs >= 2 && code.includes('for') ? { success: true, message: '🎉🚀 Grade Tracker complete! You can build real apps!' } : { success: false, message: 'Create at least 2 functions and loop through students.' }; } } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; const defs = py.count(/def /g); return defs >= 2 && py.has('for') ? { success: true, message: '🎉🚀 Grade Tracker complete! You can build real apps!' } : { success: false, message: 'Create at least 2 functions and loop through students.' }; } } }
     ]
   },
   {
@@ -800,7 +959,7 @@ my_pet = <span class="code-func">Pet</span>(<span class="code-string">"Buddy"</s
 my_pet.play()
 my_pet.feed()</div>`,
         challenge: { prompt: 'Create a Robot class with name, battery, and methods for work() (uses battery) and charge() (adds battery).', hint: 'class Robot: def __init__(self, name): ...',
-          validator: (code) => code.includes('class') && code.includes('def') ? { success: true, message: '🎉 OOP unlocked! You created your first class!' } : { success: false, message: 'Use class keyword and def for methods.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('class') && py.has('def') ? { success: true, message: '🎉 OOP unlocked! You created your first class!' } : { success: false, message: 'Use class keyword and def for methods.' }; } } },
       { id: 'w6l2', title: 'Inheritance', description: 'Build on existing classes', xp: 35, tags: ['oop', 'inheritance'],
         content: `<h3>Inheritance - Child Classes 👨‍👧</h3>
           <div class="code-block"><span class="code-keyword">class</span> <span class="code-func">Animal</span>:
@@ -821,7 +980,7 @@ pets = [<span class="code-func">Dog</span>(<span class="code-string">"Rex"</span
 <span class="code-keyword">for</span> pet <span class="code-keyword">in</span> pets:
     pet.speak()</div>`,
         challenge: { prompt: 'Create a Vehicle base class and two child classes (Car, Motorcycle) with different behaviors.', hint: 'class Car(Vehicle): ...',
-          validator: (code) => (code.match(/class /g) || []).length >= 2 ? { success: true, message: '🎉 Inheritance master! Code reuse is powerful!' } : { success: false, message: 'Create at least 2 classes, one inheriting from another.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.count(/class /g) >= 2 ? { success: true, message: '🎉 Inheritance master! Code reuse is powerful!' } : { success: false, message: 'Create at least 2 classes, one inheriting from another.' }; } } },
       { id: 'w6l3', title: 'Game Characters with OOP', description: 'OOP for game design', xp: 35, tags: ['oop', 'games'],
         content: `<h3>Game Characters with Classes 🎮</h3>
           <div class="code-block"><span class="code-keyword">class</span> <span class="code-func">Character</span>:
@@ -842,7 +1001,7 @@ pets = [<span class="code-func">Dog</span>(<span class="code-string">"Rex"</span
         target.hp -= damage
         <span class="code-func">print</span>(<span class="code-string">f"{self.name} casts FIREBALL for {damage}! 🔥"</span>)</div>`,
         challenge: { prompt: 'Create a Character class with Warrior and Mage subclasses. Each should have a unique special ability.', hint: 'Warrior has shield_bash(), Mage has heal()',
-          validator: (code) => (code.match(/class /g) || []).length >= 3 ? { success: true, message: '🎉 Game designer! OOP makes games amazing!' } : { success: false, message: 'Create at least 3 classes (base + 2 subclasses).' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.count(/class /g) >= 3 ? { success: true, message: '🎉 Game designer! OOP makes games amazing!' } : { success: false, message: 'Create at least 3 classes (base + 2 subclasses).' }; } } },
       { id: 'w6l4', title: 'Inventory System', description: 'Build a game inventory', xp: 35, tags: ['oop', 'games', 'data'],
         content: `<h3>Inventory System 🎒</h3>
           <div class="code-block"><span class="code-keyword">class</span> <span class="code-func">Item</span>:
@@ -863,7 +1022,7 @@ pets = [<span class="code-func">Dog</span>(<span class="code-string">"Rex"</span
     <span class="code-keyword">def</span> <span class="code-func">total_value</span>(self):
         <span class="code-keyword">return</span> <span class="code-func">sum</span>(i.value <span class="code-keyword">for</span> i <span class="code-keyword">in</span> self.items)</div>`,
         challenge: { prompt: 'Build an inventory system with Item and Inventory classes. Add methods for adding, removing, and searching items.', hint: 'Inventory needs add(), remove(), search(), and show() methods.',
-          validator: (code) => (code.match(/class /g) || []).length >= 2 && (code.match(/def /g) || []).length >= 4 ? { success: true, message: '🎉 Inventory system built! Ready for RPGs!' } : { success: false, message: 'Create 2+ classes with 4+ methods total.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.count(/class /g) >= 2 && py.count(/def /g) >= 4 ? { success: true, message: '🎉 Inventory system built! Ready for RPGs!' } : { success: false, message: 'Create 2+ classes with 4+ methods total.' }; } } },
       { id: 'w6l5', title: 'Week 6 Project: Pet Simulator', description: 'Virtual pet game with OOP', xp: 80, tags: ['project', 'oop', 'games'],
         content: `<h3>🚀 Project: Virtual Pet Simulator</h3><p>Build a Tamagotchi-style pet game using classes!</p>
           <div class="code-block"><span class="code-comment"># Create Pet class with hunger, happiness, energy</span>
@@ -871,7 +1030,7 @@ pets = [<span class="code-func">Dog</span>(<span class="code-string">"Rex"</span
 <span class="code-comment"># Stats decrease over time</span>
 <span class="code-comment"># Pet evolves when stats are high enough!</span></div>`,
         challenge: { prompt: 'Build a virtual pet with at least 3 stats and 4 actions. Make it evolve or change based on how well you care for it!', hint: 'Use a Pet class with stats dict and methods for each action.',
-          validator: (code) => code.includes('class') && (code.match(/def /g) || []).length >= 4 ? { success: true, message: '🎉🚀 Pet Simulator complete! Your virtual pet lives!' } : { success: false, message: 'Create a class with at least 4 methods.' } } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('class') && py.count(/def /g) >= 4 ? { success: true, message: '🎉🚀 Pet Simulator complete! Your virtual pet lives!' } : { success: false, message: 'Create a class with at least 4 methods.' }; } } }
     ]
   },
   {
@@ -899,7 +1058,7 @@ pets = [<span class="code-func">Dog</span>(<span class="code-string">"Rex"</span
         <span class="code-keyword">else</span>: high = mid - <span class="code-number">1</span>
     <span class="code-keyword">return</span> -<span class="code-number">1</span></div>`,
         challenge: { prompt: 'Implement binary search. Test it on a sorted list of 20 numbers.', hint: 'Remember: binary search only works on sorted lists!',
-          validator: (code) => code.includes('def') && code.includes('while') && code.includes('mid') ? { success: true, message: '🎉 Algorithm ace! Binary search is super fast!' } : { success: false, message: 'Implement binary search with a while loop and mid variable.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('while') && py.has('mid') ? { success: true, message: '🎉 Algorithm ace! Binary search is super fast!' } : { success: false, message: 'Implement binary search with a while loop and mid variable.' }; } } },
       { id: 'w7l2', title: 'Sorting Algorithms', description: 'Bubble sort and selection sort', xp: 40, tags: ['algorithms', 'sorting'],
         content: `<h3>Sorting Algorithms 📊</h3>
           <div class="code-block"><span class="code-keyword">def</span> <span class="code-func">bubble_sort</span>(lst):
@@ -913,7 +1072,7 @@ pets = [<span class="code-func">Dog</span>(<span class="code-string">"Rex"</span
 nums = [<span class="code-number">64</span>, <span class="code-number">34</span>, <span class="code-number">25</span>, <span class="code-number">12</span>, <span class="code-number">22</span>, <span class="code-number">11</span>, <span class="code-number">90</span>]
 <span class="code-func">print</span>(<span class="code-func">bubble_sort</span>(nums))</div>`,
         challenge: { prompt: 'Implement bubble sort from scratch. Show it sorting a list step by step.', hint: 'Compare adjacent elements and swap if out of order.',
-          validator: (code) => code.includes('def') && code.includes('for') && (code.includes('swap') || code.includes(',')) ? { success: true, message: '🎉 Sorting wizard! You understand how sorting works!' } : { success: false, message: 'Create a bubble sort with nested for loops.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('for') && (py.has('swap') || py.has(',')) ? { success: true, message: '🎉 Sorting wizard! You understand how sorting works!' } : { success: false, message: 'Create a bubble sort with nested for loops.' }; } } },
       { id: 'w7l3', title: 'Recursion', description: 'Functions that call themselves', xp: 40, tags: ['algorithms', 'recursion'],
         content: `<h3>Recursion 🪆</h3><p>A function that calls itself!</p>
           <div class="code-block"><span class="code-keyword">def</span> <span class="code-func">factorial</span>(n):
@@ -929,7 +1088,7 @@ nums = [<span class="code-number">64</span>, <span class="code-number">34</span>
 <span class="code-keyword">for</span> i <span class="code-keyword">in</span> <span class="code-func">range</span>(<span class="code-number">10</span>):
     <span class="code-func">print</span>(<span class="code-func">fibonacci</span>(i), end=<span class="code-string">" "</span>)</div>`,
         challenge: { prompt: 'Write a recursive function that calculates the sum of all digits in a number (e.g., 1234 → 10).', hint: 'Base case: single digit. Recursive case: last digit + sum_digits(rest).',
-          validator: (code) => code.includes('def') && code.includes('return') ? { success: true, message: '🎉 Recursion unlocked! Functions within functions!' } : { success: false, message: 'Write a recursive function with def and return.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('return') ? { success: true, message: '🎉 Recursion unlocked! Functions within functions!' } : { success: false, message: 'Write a recursive function with def and return.' }; } } },
       { id: 'w7l4', title: 'Pattern Challenges', description: 'Code pattern problems', xp: 35, tags: ['algorithms', 'patterns'],
         content: `<h3>Pattern Challenges 🎨</h3>
           <div class="code-block"><span class="code-comment"># Diamond pattern</span>
@@ -950,11 +1109,11 @@ n = <span class="code-number">5</span>
         tri.append(row)
     <span class="code-keyword">return</span> tri</div>`,
         challenge: { prompt: 'Create a diamond pattern with stars (*) that is 7 rows tall. Bonus: use a different character!', hint: 'Two loops: one for top half growing, one for bottom half shrinking.',
-          validator: (code) => code.includes('for') && code.includes('print') && code.includes('*') ? { success: true, message: '🎉 Pattern pro! Beautiful code art!' } : { success: false, message: 'Use for loops and print with * operator.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.count(/print\s*\(/g) >= 1 && py.has('*') ? { success: true, message: '🎉 Pattern pro! Beautiful code art!' } : { success: false, message: 'Use for loops and print with * operator.' }; } } },
       { id: 'w7l5', title: 'Week 7 Project: Algorithm Visualizer', description: 'See algorithms in action', xp: 80, tags: ['project', 'algorithms'],
         content: `<h3>🚀 Project: Algorithm Visualizer</h3><p>Build a text-based visualizer that shows sorting algorithms step by step!</p>`,
         challenge: { prompt: 'Create a program that visually shows bubble sort working on a list. Print the list after each swap with bars (█) to show values.', hint: 'After each swap, print the list and use "█" * value to show bar charts.',
-          validator: (code) => code.includes('def') && code.includes('for') && code.includes('print') ? { success: true, message: '🎉🚀 Algorithm Visualizer complete! You think like a CS major!' } : { success: false, message: 'Create a sorting visualizer with def, for, and print.' } } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('for') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '🎉🚀 Algorithm Visualizer complete! You think like a CS major!' } : { success: false, message: 'Create a sorting visualizer with def, for, and print.' }; } } }
     ]
   },
   {
@@ -981,7 +1140,7 @@ messages = [<span class="code-string">"Hello bot"</span>, <span class="code-stri
     <span class="code-func">print</span>(<span class="code-string">f"You: {msg}"</span>)
     <span class="code-func">print</span>(<span class="code-string">f"Bot: {chatbot(msg)}\\n"</span>)</div>`,
         challenge: { prompt: 'Build a chatbot that responds to at least 5 different topics using keyword matching.', hint: 'Check for keywords with "in" operator: if "math" in message.',
-          validator: (code) => code.includes('def') && (code.match(/if|elif/g) || []).length >= 5 ? { success: true, message: '🎉 AI builder! Your first chatbot works!' } : { success: false, message: 'Create a function with at least 5 if/elif branches.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.count(/if|elif/g) >= 5 ? { success: true, message: '🎉 AI builder! Your first chatbot works!' } : { success: false, message: 'Create a function with at least 5 if/elif branches.' }; } } },
       { id: 'w8l2', title: 'Pattern Recognition', description: 'Teach computers to find patterns', xp: 40, tags: ['ai', 'patterns'],
         content: `<h3>Pattern Recognition 🧠</h3><p>AI finds patterns in data. Let's build a simple classifier!</p>
           <div class="code-block"><span class="code-comment"># Simple spam detector</span>
@@ -999,7 +1158,7 @@ emails = [<span class="code-string">"Free prize! Click now!"</span>, <span class
 <span class="code-keyword">for</span> email <span class="code-keyword">in</span> emails:
     <span class="code-func">print</span>(<span class="code-string">f"{'SPAM' if is_spam(email) else 'OK'}: {email}"</span>)</div>`,
         challenge: { prompt: 'Build a simple sentiment analyzer that classifies text as positive, negative, or neutral based on keywords.', hint: 'Create lists of positive and negative words, count matches.',
-          validator: (code) => code.includes('def') && code.includes('for') ? { success: true, message: '🎉 AI pattern finder! You classified data!' } : { success: false, message: 'Create a classifier function with word lists.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('for') ? { success: true, message: '🎉 AI pattern finder! You classified data!' } : { success: false, message: 'Create a classifier function with word lists.' }; } } },
       { id: 'w8l3', title: 'Data Structures for AI', description: 'Matrices and datasets', xp: 35, tags: ['ai', 'data'],
         content: `<h3>Data for AI 📊</h3><p>AI needs organized data. Learn about matrices and datasets!</p>
           <div class="code-block"><span class="code-comment"># 2D list (matrix) - like a spreadsheet!</span>
@@ -1016,7 +1175,7 @@ grid = [
 <span class="code-keyword">for</span> row <span class="code-keyword">in</span> grid:
     <span class="code-func">print</span>(row)</div>`,
         challenge: { prompt: 'Create a 5x5 multiplication table as a 2D list. Print it formatted nicely.', hint: 'Use nested loops: [[i*j for j in range(1,6)] for i in range(1,6)]',
-          validator: (code) => code.includes('for') && code.includes('[') && code.includes('print') ? { success: true, message: '🎉 Data structures ready for AI!' } : { success: false, message: 'Create a 2D list with nested loops.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('[') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '🎉 Data structures ready for AI!' } : { success: false, message: 'Create a 2D list with nested loops.' }; } } },
       { id: 'w8l4', title: 'Recommendation Engine', description: 'Build a simple recommender', xp: 40, tags: ['ai', 'recommendation'],
         content: `<h3>Recommendation Engine 🎯</h3><p>Netflix, YouTube, Spotify - they all use recommenders!</p>
           <div class="code-block">users = {
@@ -1038,7 +1197,7 @@ grid = [
 
 <span class="code-func">print</span>(<span class="code-func">recommend</span>(<span class="code-string">"Alex"</span>, users))</div>`,
         challenge: { prompt: 'Build a movie or book recommender. Create user profiles with interests and suggest items based on similar users.', hint: 'Compare user interests, find what similar users like that the target user hasn\'t seen.',
-          validator: (code) => code.includes('def') && code.includes('for') && code.includes('{') ? { success: true, message: '🎉 Recommender built! You think like Netflix!' } : { success: false, message: 'Create a recommendation function with user data.' } } },
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('for') && py.has('{') ? { success: true, message: '🎉 Recommender built! You think like Netflix!' } : { success: false, message: 'Create a recommendation function with user data.' }; } } },
       { id: 'w8l5', title: 'Week 8: Capstone Project', description: 'Build your masterpiece!', xp: 100, tags: ['project', 'ai', 'capstone'],
         content: `<h3>🚀🏆 Capstone Project: AI-Powered Game</h3>
           <p>Combine EVERYTHING you've learned to build your ultimate project! Choose one:</p>
@@ -1047,7 +1206,7 @@ grid = [
           <p><strong>Option C:</strong> Data analyzer that processes and visualizes information</p>
           <p><strong>Option D:</strong> Your own idea! Use classes, functions, data structures, and algorithms.</p>`,
         challenge: { prompt: 'Build your capstone project! It should use classes, functions, lists/dicts, loops, and at least one "AI" feature (pattern matching, recommendations, or adaptive behavior).', hint: 'Plan first: what classes? what functions? what data? Then build step by step.',
-          validator: (code) => { const defs = (code.match(/def /g) || []).length; const classes = (code.match(/class /g) || []).length; return defs >= 3 && (classes >= 1 || defs >= 5) ? { success: true, message: '🎉🚀🏆👑 LEGENDARY! You completed LevelUp Academy! You are a TRUE Code Master!' } : { success: false, message: 'Use at least 3 functions and 1 class (or 5+ functions) for your capstone.' }; } } }
+          validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; const defs = py.count(/def /g); const classes = py.count(/class /g); return defs >= 3 && (classes >= 1 || defs >= 5) ? { success: true, message: '🎉🚀🏆👑 LEGENDARY! You completed LevelUp Academy! You are a TRUE Code Master!' } : { success: false, message: 'Use at least 3 functions and 1 class (or 5+ functions) for your capstone.' }; } } }
     ]
   }
 ];
@@ -1142,44 +1301,44 @@ const DUEL_CHALLENGES = {
   easy: [
     { id: 'e1', title: 'Sum It Up', description: 'Calculate the sum of numbers 1 to 10', timeLimit: 60, xp: 20,
       hint: 'Use a for loop or the sum() function',
-      validator: (code) => code.includes('print') && (code.includes('for') || code.includes('sum')) ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Print the sum of 1-10' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.count(/print\s*\(/g) >= 1 && (py.has('for') || py.has('sum')) ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Print the sum of 1-10' }; } },
     { id: 'e2', title: 'Even Counter', description: 'Count even numbers from 1 to 20', timeLimit: 60, xp: 20,
       hint: 'Use modulo (%) to check if even',
-      validator: (code) => code.includes('print') && code.includes('%') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use % 2 to find evens' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.count(/print\s*\(/g) >= 1 && py.has('%') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use % 2 to find evens' }; } },
     { id: 'e3', title: 'Star Triangle', description: 'Print a right triangle of stars (5 rows)', timeLimit: 90, xp: 25,
       hint: 'Use string multiplication: "*" * i',
-      validator: (code) => code.includes('for') && code.includes('*') && code.includes('print') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use a for loop with print("*" * i)' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('*') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use a for loop with print("*" * i)' }; } },
     { id: 'e4', title: 'Max Finder', description: 'Find the largest number in a list', timeLimit: 60, xp: 20,
       hint: 'Use max() or loop through comparing',
-      validator: (code) => code.includes('print') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Print the maximum value' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Print the maximum value' }; } },
   ],
   medium: [
     { id: 'm1', title: 'FizzBuzz', description: 'Print FizzBuzz for numbers 1-30', timeLimit: 120, xp: 35,
       hint: 'Check divisible by 15 first, then 5, then 3',
-      validator: (code) => code.includes('for') && code.includes('if') && code.includes('Fizz') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use if/elif for Fizz, Buzz, FizzBuzz' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('if') && py.has('Fizz') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use if/elif for Fizz, Buzz, FizzBuzz' }; } },
     { id: 'm2', title: 'Palindrome Check', description: 'Check if a word is a palindrome', timeLimit: 120, xp: 35,
       hint: 'Reverse the string and compare: word == word[::-1]',
-      validator: (code) => code.includes('def') && code.includes('return') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Create a function that returns True/False' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('return') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Create a function that returns True/False' }; } },
     { id: 'm3', title: 'Word Frequency', description: 'Count how many times each word appears in a sentence', timeLimit: 120, xp: 40,
       hint: 'Use a dictionary to store counts',
-      validator: (code) => code.includes('for') && code.includes('{') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use a dictionary to count words' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('{') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use a dictionary to count words' }; } },
     { id: 'm4', title: 'Prime Finder', description: 'Find all prime numbers up to 50', timeLimit: 150, xp: 40,
       hint: 'A prime is only divisible by 1 and itself',
-      validator: (code) => code.includes('for') && code.includes('if') && code.includes('print') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Loop and check divisibility' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('if') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Loop and check divisibility' }; } },
   ],
   hard: [
     { id: 'h1', title: 'Caesar Cipher', description: 'Encrypt a message by shifting letters', timeLimit: 180, xp: 50,
       hint: 'Use ord() and chr() to shift characters',
-      validator: (code) => code.includes('def') && (code.includes('ord') || code.includes('chr') || code.includes('for')) ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Create an encrypt function' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && (py.has('ord') || py.has('chr') || py.has('for')) ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Create an encrypt function' }; } },
     { id: 'h2', title: 'Matrix Sum', description: 'Add two 3x3 matrices together', timeLimit: 180, xp: 50,
       hint: 'Use nested loops for rows and columns',
-      validator: (code) => code.includes('for') && code.includes('[') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use nested loops with 2D lists' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('[') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use nested loops with 2D lists' }; } },
     { id: 'h3', title: 'Recursive Power', description: 'Calculate x^n using recursion (no ** operator)', timeLimit: 150, xp: 55,
       hint: 'Base case: n==0 returns 1. Recursive: x * power(x, n-1)',
-      validator: (code) => code.includes('def') && code.includes('return') && !code.includes('**') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use recursion, not the ** operator' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('return') && !py.has('**') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use recursion, not the ** operator' }; } },
     { id: 'h4', title: 'Binary Converter', description: 'Convert decimal to binary without bin()', timeLimit: 180, xp: 55,
       hint: 'Repeatedly divide by 2 and collect remainders',
-      validator: (code) => code.includes('def') && code.includes('while') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use a while loop dividing by 2' } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('while') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use a while loop dividing by 2' }; } },
   ]
 };
 
