@@ -1393,6 +1393,52 @@ body {
 .weekly-chart .bar-label { font-size: 0.7rem; color: var(--text-dim); margin-top: 6px; }
 .weekly-chart .bar-value { font-size: 0.7rem; font-weight: 600; margin-bottom: 4px; }
 
+/* Run button (green) */
+.btn-run {
+  background: #10b981; color: white; font-weight: 600;
+}
+.btn-run:hover { background: #059669; }
+
+/* Locked lesson tab */
+.lesson-tab.tab-locked {
+  opacity: 0.5; cursor: not-allowed;
+}
+
+/* Project page styles */
+.project-brief {
+  background: var(--bg); border-radius: 12px; padding: 16px; margin-bottom: 16px;
+  border-left: 4px solid var(--primary);
+}
+.project-brief h4 { margin-bottom: 8px; }
+.project-requirements-list { margin-top: 12px; font-size: 0.9rem; }
+.project-requirements-list ul { margin: 6px 0 0 18px; }
+.project-requirements-list li { margin-bottom: 4px; color: var(--text-dim); }
+
+.project-hints-section { margin-bottom: 16px; }
+.project-hints-section h4 { margin-bottom: 8px; }
+.project-hint {
+  padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; font-size: 0.9rem;
+}
+.project-hint.revealed {
+  background: var(--bg); border-left: 3px solid var(--accent-yellow);
+}
+.project-hint.locked {
+  color: var(--text-dim); opacity: 0.5; font-style: italic;
+}
+.project-hint .hint-num {
+  font-weight: 700; color: var(--accent-yellow); margin-right: 6px;
+}
+
+.project-editor { margin-top: 16px; }
+.project-editor h4 { margin-bottom: 8px; }
+.project-code { min-height: 200px; }
+
+/* Tournament round highlight */
+.tournament-standing.is-you {
+  background: rgba(124, 92, 252, 0.12); border-radius: 8px; font-weight: 700;
+}
+.tournament-round { border: 2px solid var(--accent-yellow); }
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 @media (max-width: 768px) {

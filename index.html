@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LevelUp Academy - Code Your Future, One Level at a Time</title>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
   <!-- Animated Background Particles -->
@@ -234,6 +234,7 @@
             <p style="color:var(--text-dim);margin-bottom:12px">Compete in this week's coding challenge! Top 3 earn bonus XP and a special badge.</p>
             <div id="tournamentInfo"></div>
           </div>
+          <div id="tournamentArena" class="hidden"></div>
           <div class="card">
             <h3>📋 Tournament Standings</h3>
             <div id="tournamentStandings"></div>
@@ -295,6 +296,14 @@
           <div id="lessonDetail"></div>
         </div>
       </div>
+
+      <!-- Project Detail (overlay) -->
+      <div id="project-overlay" class="overlay hidden">
+        <div class="overlay-content" style="max-width:850px">
+          <button class="close-btn" onclick="playSound('click'); closeProjectOverlay()">&times;</button>
+          <div id="projectDetail"></div>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -346,10 +355,10 @@
   <!-- Confetti Canvas -->
   <canvas id="confetti" class="confetti-canvas"></canvas>
 
-  <script src="data.js?v=6"></script>
-  <script src="extras.js?v=6"></script>
+  <script src="data.js?v=7"></script>
+  <script src="extras.js?v=7"></script>
   <script src="sounds.js?v=5"></script>
   <script src="api.js?v=5"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

@@ -1212,18 +1212,90 @@ grid = [
 ];
 
 const PROJECTS = [
-  { id: 'p1', title: 'Bio Card Generator', icon: '🪪', description: 'Create a personalized bio card with variables and print statements.', difficulty: 'beginner', week: 1, xp: 50 },
-  { id: 'p2', title: 'Number Guessing Game', icon: '🎯', description: 'Build a game where players guess a secret number with hints.', difficulty: 'beginner', week: 2, xp: 60 },
-  { id: 'p3', title: 'Quiz Master', icon: '🧠', description: 'Create a quiz game with multiple categories and scoring.', difficulty: 'intermediate', week: 3, xp: 60 },
-  { id: 'p4', title: 'Math Battle Arena', icon: '🧮', description: 'Timed math challenges with difficulty levels and leaderboards.', difficulty: 'intermediate', week: 3, xp: 70 },
-  { id: 'p5', title: 'Text Adventure RPG', icon: '🗺️', description: 'Multi-room adventure with inventory, combat, and story choices.', difficulty: 'intermediate', week: 4, xp: 80 },
-  { id: 'p6', title: 'Physics Simulator', icon: '🔬', description: 'Simulate gravity, bouncing balls, and projectile motion.', difficulty: 'advanced', week: 4, xp: 80 },
-  { id: 'p7', title: 'RPG Battle Game', icon: '⚔️', description: 'Full RPG with characters, items, spells, and boss fights.', difficulty: 'advanced', week: 4, xp: 100 },
-  { id: 'p8', title: 'AI Chatbot', icon: '🤖', description: 'Build a simple chatbot that responds to keywords and learns.', difficulty: 'advanced', week: 4, xp: 100 },
-  { id: 'p9', title: 'Grade Tracker Pro', icon: '📊', description: 'Full grade management with letter grades, GPA, and class rankings.', difficulty: 'intermediate', week: 5, xp: 70 },
-  { id: 'p10', title: 'Virtual Pet Game', icon: '🐾', description: 'Tamagotchi-style pet with stats, evolution, and mini-games.', difficulty: 'intermediate', week: 6, xp: 80 },
-  { id: 'p11', title: 'Sorting Visualizer', icon: '📈', description: 'Watch bubble sort, selection sort, and insertion sort in action.', difficulty: 'advanced', week: 7, xp: 90 },
-  { id: 'p12', title: 'AI Movie Recommender', icon: '🎬', description: 'Build a recommendation engine based on user preferences.', difficulty: 'advanced', week: 8, xp: 100 },
+  { id: 'p1', title: 'Bio Card Generator', icon: '🪪', description: 'Create a personalized bio card with variables and print statements.',
+    difficulty: 'beginner', week: 1, xp: 50,
+    requirements: ['Use at least 3 variables (name, age, hobby)', 'Print a formatted bio card with borders', 'Use f-strings or string concatenation'],
+    hints: ['Start by storing your info in variables: name = "Your Name"', 'Use print("=" * 30) to make a border line', 'Use f-strings like print(f"Name: {name}") to display each field'],
+    starter: '# Bio Card Generator\n# Create variables and print a nice bio card!\n\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.count(/\w+\s*=/) >= 3 && py.count(/print\s*\(/g) >= 3 ? { success: true, message: '🎉 Awesome bio card! You nailed variables and print!' } : { success: false, message: 'Use at least 3 variables and 3 print statements.' }; }
+  },
+  { id: 'p2', title: 'Number Guessing Game', icon: '🎯', description: 'Build a game where players guess a secret number with hints.',
+    difficulty: 'beginner', week: 2, xp: 60,
+    requirements: ['Generate a random number between 1 and 100', 'Use a while loop for repeated guesses', 'Print "too high" or "too low" hints', 'Count the number of guesses'],
+    hints: ['Use import random and random.randint(1, 100) to pick the secret number', 'Use a while True loop and break when they guess correctly', 'Compare with if guess > secret: print("Too high!") and elif guess < secret: print("Too low!")'],
+    starter: '# Number Guessing Game\nimport random\n\nsecret = random.randint(1, 100)\nprint("I\'m thinking of a number between 1 and 100!")\n\n# Add your game loop here\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('while') && py.has('random') && (py.has('high') || py.has('low') || py.has('>') || py.has('<')) ? { success: true, message: '🎉 Great guessing game! Loops + conditionals mastered!' } : { success: false, message: 'Need a while loop, random number, and high/low hints.' }; }
+  },
+  { id: 'p3', title: 'Quiz Master', icon: '🧠', description: 'Create a quiz game with multiple categories and scoring.',
+    difficulty: 'intermediate', week: 3, xp: 60,
+    requirements: ['Store at least 5 questions in a list or dictionary', 'Keep track of the score', 'Show the final score at the end', 'Use a function for asking questions'],
+    hints: ['Store questions as a list of dictionaries: [{"q": "What is 2+2?", "a": "4"}, ...]', 'Create a function def ask_question(question): that returns True/False', 'Loop through questions with for q in questions: and increment score when correct'],
+    starter: '# Quiz Master\n# Build a quiz game with scoring!\n\nquestions = [\n    # Add your questions here as dictionaries\n]\n\nscore = 0\n\n# Create your quiz logic\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('for') && py.has('score') ? { success: true, message: '🎉 Quiz Master built! Functions + data structures = power!' } : { success: false, message: 'Need a function, a loop through questions, and score tracking.' }; }
+  },
+  { id: 'p4', title: 'Math Battle Arena', icon: '🧮', description: 'Timed math challenges with difficulty levels and leaderboards.',
+    difficulty: 'intermediate', week: 3, xp: 70,
+    requirements: ['Generate random math problems (+, -, *)', 'Have at least 2 difficulty levels', 'Track score and number of correct answers', 'Use functions to organize code'],
+    hints: ['Use random.choice(["+", "-", "*"]) to pick an operator', 'Create a function def generate_problem(difficulty): that returns harder numbers for higher levels', 'Use eval() or if/elif to check answers based on the operator'],
+    starter: '# Math Battle Arena\nimport random\n\ndef generate_problem(difficulty):\n    # Easy: numbers 1-10, Hard: numbers 1-100\n    pass\n\nscore = 0\nrounds = 5\n\n# Build your game loop\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('random') && py.has('score') ? { success: true, message: '🎉 Math arena complete! Great use of functions and randomness!' } : { success: false, message: 'Need functions, random math problems, and scoring.' }; }
+  },
+  { id: 'p5', title: 'Text Adventure RPG', icon: '🗺️', description: 'Multi-room adventure with inventory, combat, and story choices.',
+    difficulty: 'intermediate', week: 4, xp: 80,
+    requirements: ['Create at least 3 rooms/locations', 'Use a dictionary to store room data', 'Implement an inventory system (list)', 'Use functions for game actions'],
+    hints: ['Store rooms as a dict: rooms = {"forest": {"description": "A dark forest...", "items": ["sword"]}, ...}', 'Use a list for inventory: inventory = [] and inventory.append(item)', 'Create functions like def look_around(room): and def pick_up(item): to keep code organized'],
+    starter: '# Text Adventure RPG\n# Create an epic adventure!\n\nrooms = {\n    # Define your rooms here\n}\n\ninventory = []\ncurrent_room = "start"\n\n# Build your adventure loop\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('{') && py.has('while') ? { success: true, message: '🎉 Epic adventure! Dictionaries + game loops = awesome RPG!' } : { success: false, message: 'Need functions, a dictionary for rooms, and a game loop.' }; }
+  },
+  { id: 'p6', title: 'Physics Simulator', icon: '🔬', description: 'Simulate gravity, bouncing balls, and projectile motion.',
+    difficulty: 'advanced', week: 4, xp: 80,
+    requirements: ['Simulate a falling ball with gravity (y += velocity, velocity += gravity)', 'Print the ball position at each time step', 'Implement a bounce when the ball hits the ground'],
+    hints: ['Set gravity = 9.8, velocity = 0, height = 100, then loop: velocity += gravity, height -= velocity', 'When height <= 0: velocity = -velocity * 0.8 (bounce with energy loss)', 'Use a for loop with range() to simulate time steps and print height each step'],
+    starter: '# Physics Simulator\n# Simulate a bouncing ball!\n\nheight = 100\nvelocity = 0\ngravity = 9.8\n\n# Simulate the ball falling and bouncing\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('gravity') && py.has('velocity') ? { success: true, message: '🎉 Physics sim complete! You modeled real-world physics!' } : { success: false, message: 'Need a loop simulating gravity with velocity updates.' }; }
+  },
+  { id: 'p7', title: 'RPG Battle Game', icon: '⚔️', description: 'Full RPG with characters, items, spells, and boss fights.',
+    difficulty: 'advanced', week: 4, xp: 100,
+    requirements: ['Create a Player class with health, attack, and defense', 'Create an Enemy class', 'Implement a turn-based battle system', 'Add at least 2 special abilities'],
+    hints: ['Create class Player: with __init__(self, name, hp, attack) and a method def take_damage(self, dmg):', 'Create class Enemy: similarly, and a def battle(player, enemy): function', 'Use while player.hp > 0 and enemy.hp > 0: for the battle loop with attack choices'],
+    starter: '# RPG Battle Game\n# Create an epic battle system!\n\nclass Player:\n    def __init__(self, name, hp, attack):\n        pass\n\nclass Enemy:\n    def __init__(self, name, hp, attack):\n        pass\n\n# Build your battle system\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('class') && py.has('def') && py.has('self') ? { success: true, message: '🎉 RPG battle system built! OOP mastery unlocked!' } : { success: false, message: 'Need classes with methods for the battle system.' }; }
+  },
+  { id: 'p8', title: 'AI Chatbot', icon: '🤖', description: 'Build a simple chatbot that responds to keywords and learns.',
+    difficulty: 'advanced', week: 4, xp: 100,
+    requirements: ['Respond to at least 5 different keywords/phrases', 'Use a dictionary to map keywords to responses', 'Handle unknown inputs gracefully', 'Use functions to organize logic'],
+    hints: ['Create a responses dictionary: responses = {"hello": "Hi there!", "help": "I can chat about..."}', 'Use a function def get_response(message): that checks if any keyword is in the message.lower()', 'Use a while True: loop and let the user type "quit" to exit'],
+    starter: '# AI Chatbot\n# Build a smart chatbot!\n\nresponses = {\n    # Map keywords to responses\n}\n\ndef get_response(message):\n    # Check for keywords in the message\n    pass\n\n# Chat loop\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('{') && py.count(/"/g) >= 6 ? { success: true, message: '🎉 Chatbot is alive! Great use of dictionaries and functions!' } : { success: false, message: 'Need a function, keyword dictionary, and multiple responses.' }; }
+  },
+  { id: 'p9', title: 'Grade Tracker Pro', icon: '📊', description: 'Full grade management with letter grades, GPA, and class rankings.',
+    difficulty: 'intermediate', week: 5, xp: 70,
+    requirements: ['Store student grades in a dictionary', 'Calculate average grade', 'Convert number grades to letter grades (A/B/C/D/F)', 'Use try/except for input validation'],
+    hints: ['Use a dict: grades = {"Math": 92, "Science": 87, ...} to store grades', 'Calculate average with sum(grades.values()) / len(grades)', 'Use if/elif to convert: if avg >= 90: return "A" elif avg >= 80: return "B" etc.'],
+    starter: '# Grade Tracker Pro\n# Track and analyze grades!\n\ngrades = {}\n\ndef add_grade(subject, score):\n    pass\n\ndef get_letter_grade(score):\n    pass\n\ndef show_report():\n    pass\n\n# Build your grade tracker\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('if') && (py.has('{') || py.has('dict')) ? { success: true, message: '🎉 Grade tracker works! Error handling + data = pro!' } : { success: false, message: 'Need functions for grade management and letter conversion.' }; }
+  },
+  { id: 'p10', title: 'Virtual Pet Game', icon: '🐾', description: 'Tamagotchi-style pet with stats, evolution, and mini-games.',
+    difficulty: 'intermediate', week: 6, xp: 80,
+    requirements: ['Create a Pet class with hunger, happiness, and energy stats', 'Implement feed(), play(), and sleep() methods', 'Stats should decrease over time', 'Print the pet status with emoji'],
+    hints: ['class Pet: with __init__ setting self.hunger = 50, self.happiness = 50, self.energy = 50', 'def feed(self): increases hunger (less hungry), def play(self): increases happiness but costs energy', 'Use a game loop where each "turn" decreases stats slightly, and the player picks actions'],
+    starter: '# Virtual Pet Game\n# Take care of your pet!\n\nclass Pet:\n    def __init__(self, name):\n        self.name = name\n        # Add stats\n\n    def feed(self):\n        pass\n\n    def play(self):\n        pass\n\n    def status(self):\n        pass\n\n# Create your pet and game loop\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('class') && py.has('self') && py.count(/def\s+/g) >= 3 ? { success: true, message: '🎉 Your virtual pet is alive! Great OOP skills!' } : { success: false, message: 'Need a Pet class with at least 3 methods.' }; }
+  },
+  { id: 'p11', title: 'Sorting Visualizer', icon: '📈', description: 'Watch bubble sort, selection sort, and insertion sort in action.',
+    difficulty: 'advanced', week: 7, xp: 90,
+    requirements: ['Implement bubble sort', 'Print the list after each swap to visualize', 'Count the number of comparisons and swaps', 'Test with a random list'],
+    hints: ['Bubble sort: for i in range(len(arr)): for j in range(len(arr)-1-i): if arr[j] > arr[j+1]: swap', 'After each swap, print the array: print(arr) so you can see it sorting', 'Add counters: comparisons += 1 before each if, swaps += 1 after each swap'],
+    starter: '# Sorting Visualizer\nimport random\n\ndef bubble_sort(arr):\n    # Implement bubble sort with visualization\n    pass\n\n# Generate random list and sort it\nnumbers = [random.randint(1, 99) for i in range(10)]\nprint("Before:", numbers)\n\n# Sort and visualize!\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('for') && (py.has('swap') || py.has('[j]') || py.has('[j+1]')) ? { success: true, message: '🎉 Sorting visualizer done! You understand algorithms!' } : { success: false, message: 'Need a sorting function with nested loops and swapping.' }; }
+  },
+  { id: 'p12', title: 'AI Movie Recommender', icon: '🎬', description: 'Build a recommendation engine based on user preferences.',
+    difficulty: 'advanced', week: 8, xp: 100,
+    requirements: ['Store movies with genres in a dictionary', 'Ask user for genre preferences', 'Score and rank movies by preference match', 'Display top recommendations'],
+    hints: ['Store movies: movies = {"Inception": ["sci-fi", "thriller"], "Frozen": ["animation", "family"], ...}', 'Ask for favorite genres and store in a list', 'Score each movie: for each genre that matches a preference, add 1 point. Sort by score.'],
+    starter: '# AI Movie Recommender\n# Recommend movies based on preferences!\n\nmovies = {\n    # "Movie Name": ["genre1", "genre2"]\n}\n\ndef recommend(preferences):\n    # Score movies by how many genres match\n    pass\n\n# Get user preferences and recommend!\n',
+    validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('{') && py.has('for') ? { success: true, message: '🎉 Movie recommender built! You created a basic AI system!' } : { success: false, message: 'Need a function, movie dictionary, and scoring loop.' }; }
+  },
 ];
 
 const ACHIEVEMENTS = [
@@ -1265,6 +1337,32 @@ const ACHIEVEMENTS = [
   // Assignments
   { id: 'a27', name: 'Extra Credit', icon: '📚', description: 'Complete 5 extra assignments', xp: 15, condition: (s) => (s.assignmentsDone || []).length >= 5 },
   { id: 'a28', name: 'Overachiever', icon: '🌟', description: 'Complete 20 extra assignments', xp: 35, condition: (s) => (s.assignmentsDone || []).length >= 20 },
+
+  // Playground & Projects
+  { id: 'a30', name: 'Lab Rat', icon: '🔬', description: 'Run code in the Code Lab 10 times', xp: 15, condition: (s) => s.playgroundRuns >= 10 },
+  { id: 'a31', name: 'Project Star', icon: '⭐', description: 'Complete 3 projects', xp: 30, condition: (s) => s.projectsCompleted >= 3 },
+  { id: 'a32', name: 'Project Legend', icon: '🌟', description: 'Complete 8 projects', xp: 60, condition: (s) => s.projectsCompleted >= 8 },
+
+  // Tournament
+  { id: 'a33', name: 'Tournament Rookie', icon: '🎪', description: 'Complete a tournament', xp: 20, condition: (s) => (s.tournamentRound || 0) >= 3 },
+  { id: 'a34', name: 'Tournament Champion', icon: '🏅', description: 'Place top 3 in a tournament', xp: 50, condition: (s) => s.tournamentScore >= 80 },
+
+  // Duel milestones
+  { id: 'a35', name: 'Duel Beginner', icon: '🤺', description: 'Win your first duel', xp: 10, condition: (s) => (s.duelsWon || 0) >= 1 },
+  { id: 'a36', name: 'Duel Master', icon: '🗡️', description: 'Win 25 duels', xp: 50, condition: (s) => (s.duelsWon || 0) >= 25 },
+  { id: 'a37', name: 'Battle Tested', icon: '🛡️', description: 'Fight 50 total duels', xp: 40, condition: (s) => ((s.duelsWon || 0) + (s.duelsLost || 0)) >= 50 },
+
+  // XP milestones
+  { id: 'a38', name: 'Rising Star', icon: '🌠', description: 'Reach 250 XP', xp: 15, condition: (s) => s.totalXP >= 250 },
+  { id: 'a39', name: 'XP Machine', icon: '⚙️', description: 'Reach 1000 XP', xp: 30, condition: (s) => s.totalXP >= 1000 },
+  { id: 'a40', name: 'XP Titan', icon: '🗿', description: 'Reach 2000 XP', xp: 40, condition: (s) => s.totalXP >= 2000 },
+  { id: 'a41', name: 'XP Immortal', icon: '👼', description: 'Reach 5000 XP', xp: 75, condition: (s) => s.totalXP >= 5000 },
+
+  // Streak milestones
+  { id: 'a42', name: 'Monthly Warrior', icon: '📅', description: 'Get a 30-day streak', xp: 100, condition: (s) => s.streak >= 30 },
+
+  // Assignment mastery
+  { id: 'a43', name: 'Homework Hero', icon: '📝', description: 'Complete 40 extra assignments', xp: 50, condition: (s) => (s.assignmentsDone || []).length >= 40 },
 
   // Ultimate
   { id: 'a11', name: 'Code Master', icon: '👑', description: 'Complete all 40 lessons', xp: 100, condition: (s) => s.lessonsCompleted >= 40 },
@@ -1310,7 +1408,25 @@ const DUEL_CHALLENGES = {
       validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('*') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use a for loop with print("*" * i)' }; } },
     { id: 'e4', title: 'Max Finder', description: 'Find the largest number in a list', timeLimit: 60, xp: 20,
       hint: 'Use max() or loop through comparing',
-      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Print the maximum value' }; } },
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.count(/print\s*\(/g) >= 1 && (py.has('max') || py.has('for')) ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use max() or a loop to find the largest' }; } },
+    { id: 'e5', title: 'Countdown', description: 'Print a countdown from 10 to 1, then "Liftoff!"', timeLimit: 60, xp: 20,
+      hint: 'Use range(10, 0, -1) or a while loop',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.count(/print\s*\(/g) >= 1 && (py.has('for') || py.has('while')) ? { success: true, message: '✅ Liftoff!' } : { success: false, message: 'Use a loop to count down from 10' }; } },
+    { id: 'e6', title: 'Hello Greeter', description: 'Create a function greet(name) that prints "Hello, [name]!"', timeLimit: 60, xp: 20,
+      hint: 'def greet(name): print(f"Hello, {name}!")',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('greet') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Great function!' } : { success: false, message: 'Define a greet(name) function that prints a greeting' }; } },
+    { id: 'e7', title: 'List Reverser', description: 'Reverse a list without using .reverse() or [::-1]', timeLimit: 90, xp: 25,
+      hint: 'Build a new list by looping backwards with range(len(lst)-1, -1, -1)',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && !py.has('.reverse()') && !py.has('[::-1]') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Reversed!' } : { success: false, message: 'Use a loop to reverse (no .reverse() or [::-1])' }; } },
+    { id: 'e8', title: 'Multiplication Table', description: 'Print the multiplication table for 7 (7x1 through 7x10)', timeLimit: 60, xp: 20,
+      hint: 'Use a for loop: for i in range(1, 11): print(f"7 x {i} = {7*i}")',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('*') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Table complete!' } : { success: false, message: 'Use a for loop to print 7 times each number' }; } },
+    { id: 'e9', title: 'Vowel Counter', description: 'Count the vowels in "Python is awesome"', timeLimit: 60, xp: 20,
+      hint: 'Loop through each character and check if it\'s in "aeiouAEIOU"',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && (py.has('aeiou') || py.has('AEIOU') || py.has('vowel')) && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Vowels counted!' } : { success: false, message: 'Loop through the string checking for vowels' }; } },
+    { id: 'e10', title: 'Average Calculator', description: 'Calculate the average of a list of 5 numbers', timeLimit: 60, xp: 20,
+      hint: 'Use sum(numbers) / len(numbers)',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return (py.has('sum') || py.has('/')) && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Average calculated!' } : { success: false, message: 'Calculate sum/length and print the average' }; } },
   ],
   medium: [
     { id: 'm1', title: 'FizzBuzz', description: 'Print FizzBuzz for numbers 1-30', timeLimit: 120, xp: 35,
@@ -1325,6 +1441,24 @@ const DUEL_CHALLENGES = {
     { id: 'm4', title: 'Prime Finder', description: 'Find all prime numbers up to 50', timeLimit: 150, xp: 40,
       hint: 'A prime is only divisible by 1 and itself',
       validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('if') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Loop and check divisibility' }; } },
+    { id: 'm5', title: 'Factorial Function', description: 'Write a function that calculates n! (factorial)', timeLimit: 90, xp: 35,
+      hint: 'Factorial: 5! = 5 * 4 * 3 * 2 * 1 = 120. Use a loop or recursion.',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('return') && (py.has('for') || py.has('factorial')) ? { success: true, message: '✅ Factorial computed!' } : { success: false, message: 'Create a factorial function with def' }; } },
+    { id: 'm6', title: 'Password Checker', description: 'Validate a password: 8+ chars, has uppercase, lowercase, and digit', timeLimit: 120, xp: 35,
+      hint: 'Use .isupper(), .islower(), .isdigit() in a loop through characters',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('for') && (py.has('upper') || py.has('lower') || py.has('digit')) ? { success: true, message: '✅ Secure validator!' } : { success: false, message: 'Create a function that checks length, uppercase, lowercase, and digits' }; } },
+    { id: 'm7', title: 'Diamond Pattern', description: 'Print a diamond shape made of stars (5 rows wide)', timeLimit: 120, xp: 40,
+      hint: 'Print spaces then stars. Top half grows, bottom half shrinks.',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.has('*') && py.has(' ') ? { success: true, message: '✅ Beautiful diamond!' } : { success: false, message: 'Use loops with spaces and stars to make the diamond' }; } },
+    { id: 'm8', title: 'List Comprehension', description: 'Create a list of squares of even numbers from 1 to 20', timeLimit: 90, xp: 35,
+      hint: 'Use [x**2 for x in range(1,21) if x % 2 == 0]',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('[') && py.has('for') && py.has('if') && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ List comprehension master!' } : { success: false, message: 'Use a list comprehension with a condition' }; } },
+    { id: 'm9', title: 'Pig Latin', description: 'Convert a word to Pig Latin (move first letter to end + "ay")', timeLimit: 120, xp: 40,
+      hint: 'word[1:] + word[0] + "ay"',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('return') && py.has('ay') ? { success: true, message: '✅ Igpay Atinlay!' } : { success: false, message: 'Create a function that moves first letter and adds "ay"' }; } },
+    { id: 'm10', title: 'Number Pyramid', description: 'Print a number pyramid:\n1\n1 2\n1 2 3\n1 2 3 4\n1 2 3 4 5', timeLimit: 90, xp: 35,
+      hint: 'Nested for loops: outer for row, inner for numbers in that row',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('for') && py.count(/for/g) >= 2 && py.count(/print\s*\(/g) >= 1 ? { success: true, message: '✅ Pyramid built!' } : { success: false, message: 'Use nested for loops to build the pyramid' }; } },
   ],
   hard: [
     { id: 'h1', title: 'Caesar Cipher', description: 'Encrypt a message by shifting letters', timeLimit: 180, xp: 50,
@@ -1339,6 +1473,24 @@ const DUEL_CHALLENGES = {
     { id: 'h4', title: 'Binary Converter', description: 'Convert decimal to binary without bin()', timeLimit: 180, xp: 55,
       hint: 'Repeatedly divide by 2 and collect remainders',
       validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('while') ? { success: true, message: '✅ Correct!' } : { success: false, message: 'Use a while loop dividing by 2' }; } },
+    { id: 'h5', title: 'Fibonacci Generator', description: 'Write a function that returns the nth Fibonacci number', timeLimit: 120, xp: 50,
+      hint: 'fib(n): if n <= 1 return n, else return fib(n-1) + fib(n-2)',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('return') && (py.has('fib') || py.has('fibonacci')) ? { success: true, message: '✅ Fibonacci computed!' } : { success: false, message: 'Create a fibonacci function with recursion or a loop' }; } },
+    { id: 'h6', title: 'Anagram Checker', description: 'Check if two words are anagrams of each other', timeLimit: 120, xp: 50,
+      hint: 'Sort both words and compare, or count letter frequencies',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('return') && (py.has('sorted') || py.has('sort') || py.has('count')) ? { success: true, message: '✅ Anagram detected!' } : { success: false, message: 'Create a function that compares sorted letters' }; } },
+    { id: 'h7', title: 'Roman Numerals', description: 'Convert a number (1-100) to Roman numerals', timeLimit: 180, xp: 55,
+      hint: 'Use a list of (value, numeral) pairs: [(100,"C"),(90,"XC"),(50,"L"),...] and subtract',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('while') && (py.has('X') || py.has('V') || py.has('I')) ? { success: true, message: '✅ Roman conversion!' } : { success: false, message: 'Create a function with Roman numeral values' }; } },
+    { id: 'h8', title: 'Flatten Nested List', description: 'Flatten [[1,2],[3,[4,5]],6] into [1,2,3,4,5,6]', timeLimit: 150, xp: 55,
+      hint: 'Use recursion: if element is a list, flatten it; otherwise append it',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('for') && py.has('return') ? { success: true, message: '✅ Flattened!' } : { success: false, message: 'Create a recursive flatten function' }; } },
+    { id: 'h9', title: 'Word Scrambler', description: 'Scramble the middle letters of each word (keep first/last)', timeLimit: 150, xp: 50,
+      hint: 'For each word: keep word[0], shuffle word[1:-1], keep word[-1]',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('def') && py.has('for') && py.has('random') ? { success: true, message: '✅ Scrambled!' } : { success: false, message: 'Create a function that scrambles middle letters' }; } },
+    { id: 'h10', title: 'Collatz Conjecture', description: 'Count steps to reach 1: if even n/2, if odd 3n+1', timeLimit: 120, xp: 50,
+      hint: 'while n != 1: if n % 2 == 0: n = n // 2 else: n = 3 * n + 1; count steps',
+      validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return py.has('while') && py.has('if') && py.has('%') ? { success: true, message: '✅ Collatz solved!' } : { success: false, message: 'Use a while loop with even/odd checks' }; } },
   ]
 };
 
