@@ -66,7 +66,7 @@ app.post('/api/signup', async (req, res) => {
       );
       try {
         await resend.emails.send({
-          from: 'LevelUp Academy <onboarding@resend.dev>',
+          from: 'LevelUp Academy <noreply@allstackhub.com>',
           to: parentEmail.trim().toLowerCase(),
           subject: `Your Parent Access Code for ${username.trim()}'s LevelUp Academy`,
           html: `
@@ -419,7 +419,7 @@ app.post('/api/parent/resend-code', async (req, res) => {
 
     const pa = rows[0];
     await resend.emails.send({
-      from: 'LevelUp Academy <onboarding@resend.dev>',
+      from: 'LevelUp Academy <noreply@allstackhub.com>',
       to: pa.parent_email,
       subject: `Your Parent Access Code for ${pa.username}'s LevelUp Academy`,
       html: `
