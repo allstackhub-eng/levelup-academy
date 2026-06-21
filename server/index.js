@@ -3,7 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { Resend } = require('resend');
 const { getPool } = require('./db');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,8 +31,15 @@ function auth(req, res, next) {
 }
 
 // --- Auth routes ---
+function generateAccessCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
 app.post('/api/signup', async (req, res) => {
-  const { username, password, avatar, theme } = req.body;
+  const { username, password, avatar, theme, parentName, parentEmail } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
   if (username.length > 20) return res.status(400).json({ error: 'Username max 20 characters' });
   if (password.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
@@ -47,6 +57,36 @@ app.post('/api/signup', async (req, res) => {
       'INSERT INTO progress (user_id) VALUES (?)',
       [userId]
     );
+
+    if (parentName && parentEmail) {
+      const accessCode = generateAccessCode();
+      await pool.execute(
+        'INSERT INTO parent_access (user_id, parent_name, parent_email, access_code) VALUES (?, ?, ?, ?)',
+        [userId, parentName.trim(), parentEmail.trim().toLowerCase(), accessCode]
+      );
+      try {
+        await resend.emails.send({
+          from: 'LevelUp Academy <noreply@allstackhub.com>',
+          to: parentEmail.trim().toLowerCase(),
+          subject: `Your Parent Access Code for ${username.trim()}'s LevelUp Academy`,
+          html: `
+            <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
+              <h1 style="color:#6366f1">🚀 LevelUp Academy</h1>
+              <p>Hi ${parentName.trim()},</p>
+              <p><strong>${username.trim()}</strong> has signed up for LevelUp Academy and listed you as their parent!</p>
+              <p>Use this code to view their progress:</p>
+              <div style="background:#f3f4f6;border-radius:12px;padding:20px;text-align:center;margin:20px 0">
+                <span style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#6366f1">${accessCode}</span>
+              </div>
+              <p>Visit <a href="https://allstackhub-eng.github.io/levelup-academy/">LevelUp Academy</a> and click the <strong>Parent</strong> button, then enter your email and this code to see their coding journey.</p>
+              <p style="color:#9ca3af;font-size:13px">If you didn't expect this email, you can safely ignore it.</p>
+            </div>
+          `
+        });
+      } catch (emailErr) {
+        console.error('Failed to send parent email:', emailErr);
+      }
+    }
 
     const token = jwt.sign({ id: userId, username: username.trim() }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id: userId, username: username.trim(), avatar: avatar || '🧑‍💻', theme: theme || 'cosmic' } });
@@ -283,6 +323,120 @@ app.put('/api/user/profile', auth, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Profile update error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// --- Parent access routes ---
+app.post('/api/parent/login', async (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ error: 'Email and access code required' });
+
+  const pool = getPool();
+  try {
+    const [rows] = await pool.execute(
+      'SELECT pa.*, u.username, u.avatar FROM parent_access pa JOIN users u ON u.id = pa.user_id WHERE pa.parent_email = ? AND pa.access_code = ?',
+      [email.trim().toLowerCase(), code.trim().toUpperCase()]
+    );
+    if (!rows.length) return res.status(401).json({ error: 'Invalid email or access code' });
+
+    const pa = rows[0];
+    const token = jwt.sign({ parentId: pa.id, userId: pa.user_id, role: 'parent' }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, parentName: pa.parent_name, childUsername: pa.username, childAvatar: pa.avatar });
+  } catch (err) {
+    console.error('Parent login error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+function parentAuth(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'parent') return res.status(403).json({ error: 'Parent access required' });
+    req.parent = decoded;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
+app.get('/api/parent/progress', parentAuth, async (req, res) => {
+  const pool = getPool();
+  try {
+    const [users] = await pool.execute('SELECT username, avatar FROM users WHERE id = ?', [req.parent.userId]);
+    if (!users.length) return res.status(404).json({ error: 'Child account not found' });
+
+    const [progress] = await pool.execute('SELECT * FROM progress WHERE user_id = ?', [req.parent.userId]);
+    if (!progress.length) return res.status(404).json({ error: 'No progress found' });
+
+    const [achievements] = await pool.execute(
+      'SELECT achievement_id, earned_at FROM achievements WHERE user_id = ? ORDER BY earned_at',
+      [req.parent.userId]
+    );
+
+    const [duels] = await pool.execute(
+      'SELECT difficulty, result, xp_earned, played_at FROM duels WHERE user_id = ? ORDER BY played_at DESC LIMIT 20',
+      [req.parent.userId]
+    );
+
+    const p = progress[0];
+    const parse = (v, fallback) => typeof v === 'string' ? JSON.parse(v) : (v || fallback);
+
+    res.json({
+      child: { username: users[0].username, avatar: users[0].avatar },
+      progress: {
+        xp: p.xp,
+        level: p.level,
+        streak: p.streak,
+        lastActive: p.last_active,
+        lessonsCompleted: parse(p.lessons_completed, []),
+        quizzesPassed: parse(p.quizzes_passed, []),
+        projectsCompleted: parse(p.projects_completed, []),
+        weeklyActivity: parse(p.weekly_activity, {})
+      },
+      achievements: achievements.map(r => ({ id: r.achievement_id, earnedAt: r.earned_at })),
+      recentDuels: duels
+    });
+  } catch (err) {
+    console.error('Parent progress error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/parent/resend-code', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+
+  const pool = getPool();
+  try {
+    const [rows] = await pool.execute(
+      'SELECT pa.*, u.username FROM parent_access pa JOIN users u ON u.id = pa.user_id WHERE pa.parent_email = ?',
+      [email.trim().toLowerCase()]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'No account found with that email' });
+
+    const pa = rows[0];
+    await resend.emails.send({
+      from: 'LevelUp Academy <noreply@allstackhub.com>',
+      to: pa.parent_email,
+      subject: `Your Parent Access Code for ${pa.username}'s LevelUp Academy`,
+      html: `
+        <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
+          <h1 style="color:#6366f1">🚀 LevelUp Academy</h1>
+          <p>Hi ${pa.parent_name},</p>
+          <p>Here's your access code to view <strong>${pa.username}</strong>'s progress:</p>
+          <div style="background:#f3f4f6;border-radius:12px;padding:20px;text-align:center;margin:20px 0">
+            <span style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#6366f1">${pa.access_code}</span>
+          </div>
+          <p style="color:#9ca3af;font-size:13px">If you didn't request this, you can safely ignore it.</p>
+        </div>
+      `
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Resend code error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

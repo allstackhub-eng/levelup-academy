@@ -41,10 +41,10 @@ const api = {
     }
   },
 
-  async signup(username, password, avatar, theme) {
+  async signup(username, password, avatar, theme, parentName, parentEmail) {
     const data = await this.request('/api/signup', {
       method: 'POST',
-      body: JSON.stringify({ username, password, avatar, theme })
+      body: JSON.stringify({ username, password, avatar, theme, parentName, parentEmail })
     });
     if (data && data.token) this.setAuth(data.token, data.user);
     return data;
@@ -111,6 +111,31 @@ const api = {
     return await this.request('/api/user/profile', {
       method: 'PUT',
       body: JSON.stringify(data)
+    });
+  },
+
+  async parentLogin(email, code) {
+    return await this.request('/api/parent/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, code })
+    });
+  },
+
+  async parentProgress(token) {
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+    try {
+      const res = await fetch(`${API_URL}/api/parent/progress`, { headers });
+      return await res.json();
+    } catch (err) {
+      console.warn('Parent progress fetch failed:', err.message);
+      return null;
+    }
+  },
+
+  async resendParentCode(email) {
+    return await this.request('/api/parent/resend-code', {
+      method: 'POST',
+      body: JSON.stringify({ email })
     });
   }
 };
