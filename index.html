@@ -250,40 +250,37 @@
             <div style="text-align:center;padding:40px 0">
               <div style="font-size:3rem;margin-bottom:12px">👨‍👩‍👧‍👦</div>
               <h2>Parent Dashboard</h2>
-              <p style="color:var(--text-dim);margin-bottom:20px">Enter your PIN to access progress reports</p>
-              <input type="password" id="parentPin" placeholder="Enter 4-digit PIN" maxlength="4"
-                style="width:200px;text-align:center;padding:14px;font-size:1.3rem;letter-spacing:8px;background:var(--bg-card);border:2px solid var(--border);border-radius:12px;color:var(--text);font-family:var(--font-main)">
-              <p id="pinError" style="color:var(--danger);font-size:0.85rem;margin-top:8px;display:none">Incorrect PIN. Try again.</p>
+              <p style="color:var(--text-dim);margin-bottom:20px">Enter your email and access code to view your child's progress</p>
+              <input type="email" id="parentEmailLogin" placeholder="Your email address"
+                style="width:300px;padding:14px;font-size:1rem;background:var(--bg-card);border:2px solid var(--border);border-radius:12px;color:var(--text);font-family:var(--font-main);margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;text-align:center">
+              <input type="text" id="parentCodeLogin" placeholder="ACCESS CODE" maxlength="6"
+                style="width:260px;text-align:center;padding:14px;font-size:1.3rem;letter-spacing:6px;background:var(--bg-card);border:2px solid var(--border);border-radius:12px;color:var(--text);font-family:var(--font-main);text-transform:uppercase;display:block;margin-left:auto;margin-right:auto">
+              <p id="parentLoginError" style="color:var(--danger);font-size:0.85rem;margin-top:8px;display:none"></p>
               <div style="margin-top:16px">
-                <button class="btn btn-primary btn-lg" onclick="checkParentPin()">Enter</button>
+                <button class="btn btn-primary btn-lg" onclick="parentLogin()">View Progress</button>
               </div>
-              <p style="color:var(--text-dim);font-size:0.8rem;margin-top:16px" id="pinSetupMsg">Default PIN: 1234. Change it in settings below after login.</p>
+              <p style="margin-top:16px"><a href="#" onclick="resendParentCode(); return false" style="color:var(--primary);font-size:0.85rem">Lost your code? Resend it</a></p>
             </div>
           </div>
           <div id="parentContent" class="hidden">
             <div class="parent-header">
               <h2>👨‍👩‍👧‍👦 Parent Dashboard</h2>
-              <p style="color:var(--text-dim)">Monitor <span id="parentChildName"></span>'s coding journey</p>
+              <p style="color:var(--text-dim)">Viewing <span id="parentChildName"></span>'s coding journey (read-only)</p>
             </div>
             <div class="parent-tabs">
               <button class="parent-tab active" onclick="showParentTab('overview', this)">📊 Overview</button>
               <button class="parent-tab" onclick="showParentTab('activity', this)">📅 Activity Log</button>
-              <button class="parent-tab" onclick="showParentTab('settings', this)">⚙️ Settings</button>
             </div>
             <div id="pt-overview" class="parent-section">
               <div class="parent-stats-grid" id="parentStats"></div>
               <div class="card"><h3>📈 Weekly Progress</h3><div id="parentWeeklyChart"></div></div>
               <div class="card"><h3>🧠 Skills Breakdown</h3><div id="parentSkills"></div></div>
+              <div class="card"><h3>🏆 Achievements</h3><div id="parentAchievements"></div></div>
               <div class="card"><h3>💡 Recommendations</h3><div id="parentRecommendations"></div></div>
             </div>
             <div id="pt-activity" class="parent-section hidden">
-              <div class="card"><h3>📅 Daily Activity Log</h3><div id="parentActivityLog"></div></div>
-            </div>
-            <div id="pt-settings" class="parent-section hidden">
-              <div class="card">
-                <h3>⚙️ Parental Controls</h3>
-                <div class="settings-form" id="parentSettingsForm"></div>
-              </div>
+              <div class="card"><h3>📅 Recent Activity</h3><div id="parentActivityLog"></div></div>
+              <div class="card"><h3>⚔️ Recent Duels</h3><div id="parentDuels"></div></div>
             </div>
           </div>
         </div>
@@ -326,6 +323,11 @@
         <input type="text" id="nameInput" placeholder="Enter your coder name..." maxlength="20" autocomplete="username">
         <label class="input-label">Create a password:</label>
         <input type="password" id="passwordInput" placeholder="At least 4 characters..." autocomplete="new-password">
+        <label class="input-label">Parent's name:</label>
+        <input type="text" id="parentNameInput" placeholder="Your parent's name..." maxlength="100">
+        <label class="input-label">Parent's email:</label>
+        <input type="email" id="parentEmailInput" placeholder="parent@email.com..." maxlength="255">
+        <p style="color:var(--text-dim);font-size:0.8rem;margin:-5px 0 10px">Your parent will get a code to check your progress</p>
         <label class="input-label">Pick your avatar:</label>
         <div class="avatar-picker" id="avatarPicker"></div>
         <label class="input-label">Choose your theme:</label>
@@ -358,7 +360,7 @@
   <script src="data.js?v=7"></script>
   <script src="extras.js?v=7"></script>
   <script src="sounds.js?v=5"></script>
-  <script src="api.js?v=5"></script>
-  <script src="app.js?v=7"></script>
+  <script src="api.js?v=8"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

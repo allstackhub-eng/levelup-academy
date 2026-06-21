@@ -86,6 +86,19 @@ async function initDB() {
     )
   `);
 
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS parent_access (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      parent_name VARCHAR(100) NOT NULL,
+      parent_email VARCHAR(255) NOT NULL,
+      access_code VARCHAR(10) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_parent_user (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
   console.log('All tables created successfully!');
   await conn.end();
 }

@@ -141,7 +141,9 @@ async function completeOnboarding() {
   }
 
   errorEl.classList.add('hidden');
-  const result = await api.signup(name, password, state.avatar, state.theme);
+  const parentName = document.getElementById('parentNameInput').value.trim();
+  const parentEmail = document.getElementById('parentEmailInput').value.trim();
+  const result = await api.signup(name, password, state.avatar, state.theme, parentName || null, parentEmail || null);
 
   if (!result) {
     errorEl.textContent = 'Could not connect to server. Try again!';
@@ -2133,31 +2135,74 @@ function resetTournament() {
 }
 
 // ==================== PARENT DASHBOARD ====================
+let parentData = null;
+
 function showParentLogin() {
   document.getElementById('parent-overlay').classList.remove('hidden');
   document.getElementById('parentLogin').classList.remove('hidden');
   document.getElementById('parentContent').classList.add('hidden');
-  document.getElementById('pinError').style.display = 'none';
-  document.getElementById('parentPin').value = '';
-  document.getElementById('parentPin').focus();
+  document.getElementById('parentLoginError').style.display = 'none';
+  document.getElementById('parentEmailLogin').value = '';
+  document.getElementById('parentCodeLogin').value = '';
+  document.getElementById('parentEmailLogin').focus();
 }
 
 function closeParentDashboard() {
   document.getElementById('parent-overlay').classList.add('hidden');
+  parentData = null;
 }
 
-function checkParentPin() {
-  const pin = document.getElementById('parentPin').value;
-  if (pin === (state.parentPin || '1234')) {
-    document.getElementById('parentLogin').classList.add('hidden');
-    document.getElementById('parentContent').classList.remove('hidden');
-    document.getElementById('parentChildName').textContent = state.name || 'Your Child';
-    renderParentOverview();
-    renderActivityLog();
-    renderParentSettings();
-  } else {
-    document.getElementById('pinError').style.display = 'block';
+async function parentLogin() {
+  const email = document.getElementById('parentEmailLogin').value.trim();
+  const code = document.getElementById('parentCodeLogin').value.trim();
+  const errorEl = document.getElementById('parentLoginError');
+
+  if (!email || !code) {
+    errorEl.textContent = 'Please enter your email and access code.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  errorEl.style.display = 'none';
+  const result = await api.parentLogin(email, code);
+  if (!result || result.error) {
+    errorEl.textContent = result?.error || 'Invalid email or access code. Please try again.';
+    errorEl.style.display = 'block';
     playSound('error');
+    return;
+  }
+
+  const progress = await api.parentProgress(result.token);
+  if (!progress || progress.error) {
+    errorEl.textContent = 'Could not load progress data. Please try again.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  parentData = progress;
+  document.getElementById('parentLogin').classList.add('hidden');
+  document.getElementById('parentContent').classList.remove('hidden');
+  document.getElementById('parentChildName').textContent = progress.child.username;
+  renderParentOverview();
+  renderParentActivityLog();
+  playSound('success');
+}
+
+async function resendParentCode() {
+  const email = document.getElementById('parentEmailLogin').value.trim();
+  const errorEl = document.getElementById('parentLoginError');
+  if (!email) {
+    errorEl.textContent = 'Please enter your email first, then click resend.';
+    errorEl.style.display = 'block';
+    return;
+  }
+  const result = await api.resendParentCode(email);
+  if (result && result.ok) {
+    errorEl.style.display = 'none';
+    showToast('Code sent! Check your email.');
+  } else {
+    errorEl.textContent = result?.error || 'Could not resend code. Check your email address.';
+    errorEl.style.display = 'block';
   }
 }
 
@@ -2166,23 +2211,26 @@ function showParentTab(tab, btn) {
   document.querySelectorAll('.parent-section').forEach(s => s.classList.add('hidden'));
   document.getElementById('pt-' + tab).classList.remove('hidden');
   if (btn) btn.classList.add('active');
-  else { const tabs = document.querySelectorAll('.parent-tab'); const map = {overview:0,activity:1,settings:2}; if (tabs[map[tab]]) tabs[map[tab]].classList.add('active'); }
+  else { const tabs = document.querySelectorAll('.parent-tab'); const map = {overview:0,activity:1}; if (tabs[map[tab]]) tabs[map[tab]].classList.add('active'); }
 }
 
 function renderParentOverview() {
+  if (!parentData) return;
+  const p = parentData.progress;
   const totalLessons = WEEKS.reduce((sum, w) => sum + w.lessons.length, 0);
-  const completionPct = totalLessons > 0 ? Math.round((state.lessonsCompleted / totalLessons) * 100) : 0;
-  const totalDuels = state.duelsWon + state.duelsLost;
-  const avgXPperDay = Object.keys(state.dailyLog || {}).length > 0
-    ? Math.round(state.totalXP / Object.keys(state.dailyLog).length) : 0;
+  const lessonsCount = (p.lessonsCompleted || []).length;
+  const completionPct = totalLessons > 0 ? Math.round((lessonsCount / totalLessons) * 100) : 0;
+  const projectsCount = (p.projectsCompleted || []).length;
+  const duelWins = parentData.recentDuels ? parentData.recentDuels.filter(d => d.result === 'win').length : 0;
+  const duelTotal = parentData.recentDuels ? parentData.recentDuels.length : 0;
 
   document.getElementById('parentStats').innerHTML = `
-    <div class="parent-stat-card"><div class="ps-icon">⚡</div><div class="ps-value">${state.totalXP}</div><div class="ps-label">Total XP Earned</div></div>
-    <div class="parent-stat-card"><div class="ps-icon">✅</div><div class="ps-value">${state.lessonsCompleted}/${totalLessons}</div><div class="ps-label">Lessons Completed</div></div>
+    <div class="parent-stat-card"><div class="ps-icon">⚡</div><div class="ps-value">${p.xp}</div><div class="ps-label">Total XP Earned</div></div>
+    <div class="parent-stat-card"><div class="ps-icon">✅</div><div class="ps-value">${lessonsCount}/${totalLessons}</div><div class="ps-label">Lessons Completed</div></div>
     <div class="parent-stat-card"><div class="ps-icon">📊</div><div class="ps-value">${completionPct}%</div><div class="ps-label">Course Progress</div></div>
-    <div class="parent-stat-card"><div class="ps-icon">🔥</div><div class="ps-value">${state.streak}</div><div class="ps-label">Current Streak</div></div>
-    <div class="parent-stat-card"><div class="ps-icon">🏗️</div><div class="ps-value">${state.projectsCompleted}</div><div class="ps-label">Projects Built</div></div>
-    <div class="parent-stat-card"><div class="ps-icon">⚔️</div><div class="ps-value">${state.duelsWon}/${totalDuels}</div><div class="ps-label">Duels Won</div></div>`;
+    <div class="parent-stat-card"><div class="ps-icon">🔥</div><div class="ps-value">${p.streak}</div><div class="ps-label">Current Streak</div></div>
+    <div class="parent-stat-card"><div class="ps-icon">🏗️</div><div class="ps-value">${projectsCount}</div><div class="ps-label">Projects Built</div></div>
+    <div class="parent-stat-card"><div class="ps-icon">⚔️</div><div class="ps-value">${duelWins}/${duelTotal}</div><div class="ps-label">Duels Won</div></div>`;
 
   // Weekly chart
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -2191,7 +2239,7 @@ function renderParentOverview() {
     const date = new Date(today);
     date.setDate(today.getDate() - today.getDay() + i + 1);
     const key = date.toDateString();
-    return { day: d, xp: (state.dailyLog && state.dailyLog[key]) ? state.dailyLog[key].xp || 0 : 0 };
+    return { day: d, xp: (p.weeklyActivity && p.weeklyActivity[key]) ? p.weeklyActivity[key].xp || 0 : 0 };
   });
   const maxXP = Math.max(...weekData.map(d => d.xp), 1);
   document.getElementById('parentWeeklyChart').innerHTML = `
@@ -2205,12 +2253,12 @@ function renderParentOverview() {
 
   // Skills breakdown
   const skills = [
-    { name: 'Basics (Variables, Print)', pct: Math.min(100, state.lessonsCompleted >= 5 ? 100 : state.lessonsCompleted * 20), color: '#6366f1' },
-    { name: 'Logic (Loops, Conditions)', pct: Math.min(100, Math.max(0, (state.lessonsCompleted - 5) * 20)), color: '#10b981' },
-    { name: 'Functions & Data', pct: Math.min(100, Math.max(0, (state.lessonsCompleted - 10) * 20)), color: '#f59e0b' },
-    { name: 'OOP & Classes', pct: Math.min(100, Math.max(0, (state.lessonsCompleted - 25) * 20)), color: '#ef4444' },
-    { name: 'Algorithms', pct: Math.min(100, Math.max(0, (state.lessonsCompleted - 30) * 20)), color: '#8b5cf6' },
-    { name: 'AI Concepts', pct: Math.min(100, Math.max(0, (state.lessonsCompleted - 35) * 20)), color: '#06b6d4' },
+    { name: 'Basics (Variables, Print)', pct: Math.min(100, lessonsCount >= 5 ? 100 : lessonsCount * 20), color: '#6366f1' },
+    { name: 'Logic (Loops, Conditions)', pct: Math.min(100, Math.max(0, (lessonsCount - 5) * 20)), color: '#10b981' },
+    { name: 'Functions & Data', pct: Math.min(100, Math.max(0, (lessonsCount - 10) * 20)), color: '#f59e0b' },
+    { name: 'OOP & Classes', pct: Math.min(100, Math.max(0, (lessonsCount - 25) * 20)), color: '#ef4444' },
+    { name: 'Algorithms', pct: Math.min(100, Math.max(0, (lessonsCount - 30) * 20)), color: '#8b5cf6' },
+    { name: 'AI Concepts', pct: Math.min(100, Math.max(0, (lessonsCount - 35) * 20)), color: '#06b6d4' },
   ];
   document.getElementById('parentSkills').innerHTML = skills.map(s => `
     <div class="skills-bar">
@@ -2218,70 +2266,61 @@ function renderParentOverview() {
       <div class="skill-track"><div class="skill-fill" style="width:${s.pct}%;background:${s.color}"></div></div>
     </div>`).join('');
 
+  // Achievements
+  const achieveEl = document.getElementById('parentAchievements');
+  if (achieveEl) {
+    const earned = parentData.achievements || [];
+    if (earned.length === 0) {
+      achieveEl.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:10px">No trophies earned yet.</p>';
+    } else {
+      achieveEl.innerHTML = `<p style="margin-bottom:10px">${earned.length} trophies earned</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">${earned.map(a => {
+          const trophy = typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS.find(t => t.id === a.id) : null;
+          return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.85rem" title="${trophy ? trophy.name : a.id}">${trophy ? trophy.icon : '🏆'} ${trophy ? trophy.name : a.id}</div>`;
+        }).join('')}</div>`;
+    }
+  }
+
   // Recommendations
   const recs = [];
-  if (state.streak < 3) recs.push('💡 Encourage daily practice to build a coding streak!');
-  if (state.lessonsCompleted < 10) recs.push('📚 Focus on completing the foundational lessons in Weeks 1-2.');
-  if (state.projectsCompleted < 2) recs.push('🏗️ Try the guided projects to apply learned concepts.');
-  if (state.duelsWon + state.duelsLost === 0) recs.push('⚔️ The Battle Arena is a fun way to practice under time pressure!');
-  if (completionPct > 50) recs.push('🌟 Great progress! Your child is ahead of schedule.');
-  if (recs.length === 0) recs.push('🏆 Amazing work! Keep up the excellent coding journey!');
+  if (p.streak < 3) recs.push('Encourage daily practice to build a coding streak!');
+  if (lessonsCount < 10) recs.push('Focus on completing the foundational lessons in Weeks 1-2.');
+  if (projectsCount < 2) recs.push('Try the guided projects to apply learned concepts.');
+  if (duelTotal === 0) recs.push('The Battle Arena is a fun way to practice under time pressure!');
+  if (completionPct > 50) recs.push('Great progress! Your child is ahead of schedule.');
+  if (recs.length === 0) recs.push('Amazing work! Keep up the excellent coding journey!');
   document.getElementById('parentRecommendations').innerHTML = `<div class="parent-recommendations">${recs.map(r => `<div class="rec-item">${r}</div>`).join('')}</div>`;
 }
 
-function renderActivityLog() {
+function renderParentActivityLog() {
+  if (!parentData) return;
   const el = document.getElementById('parentActivityLog');
   if (!el) return;
-  const log = state.dailyLog || {};
+  const log = parentData.progress.weeklyActivity || {};
   const dates = Object.keys(log).sort((a, b) => new Date(b) - new Date(a)).slice(0, 14);
   if (dates.length === 0) {
-    el.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:20px">No activity recorded yet. Activity will appear here as your child completes lessons.</p>';
-    return;
+    el.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:20px">No activity recorded yet.</p>';
+  } else {
+    el.innerHTML = dates.map(d => {
+      const entry = log[d];
+      return `<div class="activity-day">
+        <div class="day-date">${d}</div>
+        <div class="day-details">${entry.lessons || 0} lessons · ${entry.challenges || 0} challenges</div>
+        <div class="day-xp">+${entry.xp || 0} XP</div>
+      </div>`;
+    }).join('');
   }
-  el.innerHTML = dates.map(d => {
-    const entry = log[d];
-    return `<div class="activity-day">
-      <div class="day-date">${d}</div>
-      <div class="day-details">${entry.lessons || 0} lessons · ${entry.challenges || 0} challenges</div>
-      <div class="day-xp">+${entry.xp || 0} XP</div>
-    </div>`;
-  }).join('');
-}
 
-function renderParentSettings() {
-  const el = document.getElementById('parentSettingsForm');
-  if (!el) return;
-  el.innerHTML = `
-    <div class="setting-item">
-      <div><div class="setting-label">Daily Time Limit</div><div class="setting-desc">Set a daily time limit (0 = unlimited)</div></div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <input type="number" id="timeLimitInput" value="${state.dailyTimeLimit || 0}" min="0" max="480" step="15">
-        <span style="font-size:0.85rem;color:var(--text-dim)">min</span>
-      </div>
-    </div>
-    <div class="setting-item">
-      <div><div class="setting-label">Change PIN</div><div class="setting-desc">Update your parent dashboard PIN</div></div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <input type="password" id="newPinInput" placeholder="New PIN" maxlength="4" style="width:100px">
-      </div>
-    </div>
-    <div class="setting-item">
-      <div><div class="setting-label">Sound Effects</div><div class="setting-desc">Enable/disable app sounds</div></div>
-      <button class="toggle-switch ${soundEnabled ? 'on' : ''}" onclick="toggleSound(); this.classList.toggle('on')"></button>
-    </div>
-    <div style="margin-top:16px">
-      <button class="btn btn-primary" onclick="saveParentSettings()">💾 Save Settings</button>
-    </div>`;
-}
-
-function saveParentSettings() {
-  const timeLimit = parseInt(document.getElementById('timeLimitInput')?.value || '0');
-  const newPin = document.getElementById('newPinInput')?.value;
-  state.dailyTimeLimit = Math.max(0, Math.min(480, timeLimit));
-  if (newPin && newPin.length === 4 && /^\d{4}$/.test(newPin)) {
-    state.parentPin = newPin;
-    showToast('🔐 PIN updated successfully!');
+  const duelsEl = document.getElementById('parentDuels');
+  if (!duelsEl) return;
+  const duels = parentData.recentDuels || [];
+  if (duels.length === 0) {
+    duelsEl.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:20px">No duels played yet.</p>';
+  } else {
+    duelsEl.innerHTML = duels.map(d => `<div class="activity-day">
+      <div class="day-date">${new Date(d.played_at).toLocaleDateString()}</div>
+      <div class="day-details">${d.difficulty} - ${d.result === 'win' ? '🏆 Won' : d.result === 'loss' ? '❌ Lost' : '🏳️ Forfeit'}</div>
+      <div class="day-xp">+${d.xp_earned} XP</div>
+    </div>`).join('');
   }
-  saveState();
-  showToast('✅ Settings saved!');
 }
