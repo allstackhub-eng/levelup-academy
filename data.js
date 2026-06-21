@@ -80,14 +80,43 @@ function pyCheck(code) {
       if (!code.includes('print')) return true;
       return /print\s*\(/.test(code);
     },
+    // Check no semicolons (common mistake from other languages)
+    noSemicolons() {
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        if (trimmed.endsWith(';')) return false;
+      }
+      return true;
+    },
+    // Check that strings are quoted inside print()
+    stringsQuoted() {
+      const printCalls = code.match(/print\s*\(([^)]*)\)/g) || [];
+      for (const call of printCalls) {
+        const inner = call.replace(/^print\s*\(/, '').replace(/\)$/, '').trim();
+        if (!inner) continue;
+        const args = inner.split(',');
+        for (let arg of args) {
+          arg = arg.trim();
+          if (!arg) continue;
+          if (/^-?\d+\.?\d*$/.test(arg)) continue;
+          if (/^["']/.test(arg)) continue;
+          if (/^(True|False|None)$/.test(arg)) continue;
+          if (/^f["']/.test(arg)) continue;
+          if (/[+\-*\/%\[\](]/.test(arg)) continue;
+          if (/^\w+$/.test(arg) && !/^(print|input|int|float|str|len|range|list|dict|set|type|abs|max|min|sum|round|sorted|reversed|enumerate|zip|map|filter|open|bool|tuple|chr|ord|hex|bin|oct|format|pow|any|all|isinstance)$/.test(arg)) continue;
+        }
+      }
+      return true;
+    },
     // Basic syntax check combining the above
     syntaxOk() {
-      return this.colonsOk() && this.parensOk() && this.bracketsOk() && this.printOk();
+      return this.colonsOk() && this.parensOk() && this.bracketsOk() && this.printOk() && this.noSemicolons();
     }
   };
 }
 
-const SYNTAX_ERR = 'Check your Python syntax! Make sure colons (:) are at the end of if/for/while/def lines, parentheses () are balanced, and print uses print().';
+const SYNTAX_ERR = 'Check your Python syntax! No semicolons (;) at end of lines, colons (:) after if/for/while/def, balanced parentheses (), and use print().';
 
 const WEEKS = [
   {
