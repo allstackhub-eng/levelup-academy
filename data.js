@@ -89,29 +89,45 @@ function pyCheck(code) {
       }
       return true;
     },
-    // Check that strings are quoted inside print()
+    // Check that bare words in print() are defined variables
     stringsQuoted() {
-      const printCalls = code.match(/print\s*\(([^)]*)\)/g) || [];
+      const defined = new Set();
+      const builtins = new Set(['True','False','None','int','float','str','len','range','list','dict','set','type','abs','max','min','sum','round','sorted','reversed','enumerate','zip','map','filter','open','bool','tuple','chr','ord','hex','bin','oct','format','pow','any','all','isinstance','input','print','i','j','k','x','y','n','_']);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        const assignMatch = trimmed.match(/^(\w+)\s*=/);
+        if (assignMatch) defined.add(assignMatch[1]);
+        const forMatch = trimmed.match(/^for\s+(\w+)\s+in/);
+        if (forMatch) defined.add(forMatch[1]);
+        const defMatch = trimmed.match(/^def\s+(\w+)\s*\(([^)]*)\)/);
+        if (defMatch) {
+          defined.add(defMatch[1]);
+          defMatch[2].split(',').forEach(p => { const name = p.trim().split('=')[0].trim(); if (name) defined.add(name); });
+        }
+        const inputMatch = trimmed.match(/^(\w+)\s*=\s*input/);
+        if (inputMatch) defined.add(inputMatch[1]);
+      }
+      const printCalls = code.match(/print\s*\([^)]*\)/g) || [];
       for (const call of printCalls) {
         const inner = call.replace(/^print\s*\(/, '').replace(/\)$/, '').trim();
         if (!inner) continue;
-        const args = inner.split(',');
-        for (let arg of args) {
-          arg = arg.trim();
-          if (!arg) continue;
-          if (/^-?\d+\.?\d*$/.test(arg)) continue;
-          if (/^["']/.test(arg)) continue;
-          if (/^(True|False|None)$/.test(arg)) continue;
-          if (/^f["']/.test(arg)) continue;
-          if (/[+\-*\/%\[\](]/.test(arg)) continue;
-          if (/^\w+$/.test(arg) && !/^(print|input|int|float|str|len|range|list|dict|set|type|abs|max|min|sum|round|sorted|reversed|enumerate|zip|map|filter|open|bool|tuple|chr|ord|hex|bin|oct|format|pow|any|all|isinstance)$/.test(arg)) continue;
+        const tokens = inner.split(',');
+        for (let tok of tokens) {
+          tok = tok.trim();
+          if (!tok) continue;
+          if (/^["']/.test(tok) || /^f["']/.test(tok)) continue;
+          if (/^-?\d+\.?\d*$/.test(tok)) continue;
+          if (/[+\-*\/%\[\](.:]/.test(tok)) continue;
+          if (/^\w+$/.test(tok)) {
+            if (!defined.has(tok) && !builtins.has(tok)) return false;
+          }
         }
       }
       return true;
     },
     // Basic syntax check combining the above
     syntaxOk() {
-      return this.colonsOk() && this.parensOk() && this.bracketsOk() && this.printOk() && this.noSemicolons();
+      return this.colonsOk() && this.parensOk() && this.bracketsOk() && this.printOk() && this.noSemicolons() && this.stringsQuoted();
     }
   };
 }
