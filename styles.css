@@ -1057,6 +1057,8 @@ body {
   border-radius: var(--radius);
   padding: 36px;
   max-width: 520px; width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
   text-align: center;
   animation: popIn 0.4s ease;
 }
