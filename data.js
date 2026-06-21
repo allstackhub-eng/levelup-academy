@@ -92,7 +92,7 @@ function pyCheck(code) {
     // Check that bare words in print() are defined variables
     stringsQuoted() {
       const defined = new Set();
-      const builtins = new Set(['True','False','None','int','float','str','len','range','list','dict','set','type','abs','max','min','sum','round','sorted','reversed','enumerate','zip','map','filter','open','bool','tuple','chr','ord','hex','bin','oct','format','pow','any','all','isinstance','input','print','i','j','k','x','y','n','_']);
+      const builtins = new Set(['True','False','None','int','float','str','len','range','list','dict','set','type','abs','max','min','sum','round','sorted','reversed','enumerate','zip','map','filter','open','bool','tuple','chr','ord','hex','bin','oct','format','pow','any','all','isinstance','input','print','_']);
       for (const line of lines) {
         const trimmed = line.trim();
         const assignMatch = trimmed.match(/^(\w+)\s*=/);

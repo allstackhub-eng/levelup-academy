@@ -1084,6 +1084,8 @@ function runPlayground() {
 // ==================== PYTHON SIMULATOR ====================
 function simulatePython(code, inputValues) {
   let output = [];
+  let printCalled = false;
+  let lineIncomplete = false;
   let variables = {};
   let userFunctions = {};
   let inputQueue = inputValues ? [...inputValues] : [];
@@ -1099,6 +1101,22 @@ function simulatePython(code, inputValues) {
       if ('([{'.includes(c)) { depth++; continue; }
       if (')]}'.includes(c)) { depth--; continue; }
       if (depth === 0 && c === op && i > 0 && i < str.length - 1 && str[i-1] !== '*' && str[i+1] !== '*') return i;
+    }
+    return -1;
+  }
+
+  function findMultiCharOp(str, op) {
+    let inStr = false, strChar = '', depth = 0;
+    for (let i = 0; i <= str.length - op.length; i++) {
+      const c = str[i];
+      if (inStr) { if (c === strChar && str[i-1] !== '\\') inStr = false; continue; }
+      if (c === '"' || c === "'") { inStr = true; strChar = c; continue; }
+      if ('([{'.includes(c)) { depth++; continue; }
+      if (')]}'.includes(c)) { depth--; continue; }
+      if (depth === 0 && str.slice(i, i + op.length) === op) {
+        if (op.length === 1 && ((op === '>' && str[i+1] === '=') || (op === '<' && str[i+1] === '=') || (op === '!' && str[i+1] === '='))) continue;
+        return i;
+      }
     }
     return -1;
   }
@@ -1130,6 +1148,79 @@ function simulatePython(code, inputValues) {
         if (ci > -1) obj[evaluate(pair.slice(0, ci).trim())] = evaluate(pair.slice(ci + 1).trim());
       }
       return obj;
+    }
+
+    // Operators — checked BEFORE func/method calls so expressions like
+    // max(a) - min(b) split correctly. Lowest precedence first.
+
+    // Boolean operators (lowest precedence)
+    const andIdx = findMultiCharOp(expr, ' and ');
+    if (andIdx > -1) return evaluate(expr.slice(0, andIdx).trim()) && evaluate(expr.slice(andIdx + 5).trim());
+    const orIdx = findMultiCharOp(expr, ' or ');
+    if (orIdx > -1) return evaluate(expr.slice(0, orIdx).trim()) || evaluate(expr.slice(orIdx + 4).trim());
+    if (expr.startsWith('not ')) return !evaluate(expr.slice(4).trim());
+
+    // Comparison operators
+    for (const [op, len] of [['==', 2], ['!=', 2], ['>=', 2], ['<=', 2], ['>', 1], ['<', 1]]) {
+      const idx = findMultiCharOp(expr, op);
+      if (idx > 0) {
+        const left = evaluate(expr.slice(0, idx).trim()), right = evaluate(expr.slice(idx + len).trim());
+        if (op === '==') return left == right;
+        if (op === '!=') return left != right;
+        if (op === '>=') return left >= right;
+        if (op === '<=') return left <= right;
+        if (op === '>') return left > right;
+        if (op === '<') return left < right;
+      }
+    }
+
+    // Arithmetic — lowest precedence first
+    const addIdx = findOperatorOutsideStrings(expr, '+');
+    if (addIdx > 0) {
+      const left = evaluate(expr.slice(0, addIdx).trim()), right = evaluate(expr.slice(addIdx + 1).trim());
+      if (typeof left === 'string' && typeof right === 'string') return left + right;
+      return Number(left) + Number(right);
+    }
+    const subIdx = findOperatorOutsideStrings(expr, '-');
+    if (subIdx > 0) {
+      const left = evaluate(expr.slice(0, subIdx).trim()), right = evaluate(expr.slice(subIdx + 1).trim());
+      return Number(left) - Number(right);
+    }
+
+    // Integer division — must check before * and /
+    if (expr.includes('//')) {
+      let inStr = false, strChar = '', depth = 0;
+      for (let i = 0; i < expr.length - 1; i++) {
+        const c = expr[i];
+        if (inStr) { if (c === strChar && expr[i-1] !== '\\') inStr = false; continue; }
+        if (c === '"' || c === "'") { inStr = true; strChar = c; continue; }
+        if ('([{'.includes(c)) { depth++; continue; }
+        if (')]}'.includes(c)) { depth--; continue; }
+        if (depth === 0 && c === '/' && expr[i+1] === '/') {
+          return Math.floor(evaluate(expr.slice(0, i).trim()) / evaluate(expr.slice(i + 2).trim()));
+        }
+      }
+    }
+
+    // Modulo
+    const modIdx = findOperatorOutsideStrings(expr, '%');
+    if (modIdx > 0) {
+      return evaluate(expr.slice(0, modIdx).trim()) % evaluate(expr.slice(modIdx + 1).trim());
+    }
+
+    // Division
+    const divIdx = findOperatorOutsideStrings(expr, '/');
+    if (divIdx > 0) {
+      return evaluate(expr.slice(0, divIdx).trim()) / evaluate(expr.slice(divIdx + 1).trim());
+    }
+
+    // String multiplication / numeric multiply
+    const mulIdx = findOperatorOutsideStrings(expr, '*');
+    if (mulIdx > 0) {
+      const left = evaluate(expr.slice(0, mulIdx).trim()), right = evaluate(expr.slice(mulIdx + 1).trim());
+      if (typeof left === 'string' && typeof right === 'number') return left.repeat(right);
+      if (typeof left === 'number' && typeof right === 'string') return right.repeat(left);
+      if (typeof left === 'number' && typeof right === 'number') return left * right;
     }
 
     const funcMatch = expr.match(/^(\w+(?:\.\w+)*)\((.*)?\)$/s);
@@ -1189,13 +1280,6 @@ function simulatePython(code, inputValues) {
       if (method === 'count') return String(obj).split(String(evaluate(args))).length - 1;
     }
 
-    const idxMatch = expr.match(/^(\w+)\[(.+)\]$/);
-    if (idxMatch) {
-      const obj = evaluate(idxMatch[1]), key = evaluate(idxMatch[2]);
-      if (typeof obj === 'string' && typeof key === 'number' && key < 0) return obj[obj.length + key];
-      return obj[key];
-    }
-
     const sliceMatch = expr.match(/^(\w+)\[([^:]*):([^:]*):?([^\]]*)\]$/);
     if (sliceMatch) {
       const obj = evaluate(sliceMatch[1]);
@@ -1206,13 +1290,11 @@ function simulatePython(code, inputValues) {
       return typeof obj === 'string' ? obj.slice(start, end) : obj.slice(start, end);
     }
 
-    // String multiplication / numeric multiply — find * operator outside quotes
-    const mulIdx = findOperatorOutsideStrings(expr, '*');
-    if (mulIdx > 0) {
-      const left = evaluate(expr.slice(0, mulIdx).trim()), right = evaluate(expr.slice(mulIdx + 1).trim());
-      if (typeof left === 'string' && typeof right === 'number') return left.repeat(right);
-      if (typeof left === 'number' && typeof right === 'string') return right.repeat(left);
-      if (typeof left === 'number' && typeof right === 'number') return left * right;
+    const idxMatch = expr.match(/^(\w+)\[(.+)\]$/);
+    if (idxMatch) {
+      const obj = evaluate(idxMatch[1]), key = evaluate(idxMatch[2]);
+      if (typeof obj === 'string' && typeof key === 'number' && key < 0) return obj[obj.length + key];
+      return obj[key];
     }
 
     try {
@@ -1305,9 +1387,10 @@ function simulatePython(code, inputValues) {
       return { skip: idx + 1 + body.length };
     }
 
-    if (line === 'print()') { output.push(''); return null; }
+    if (line === 'print()') { printCalled = true; if (lineIncomplete) { lineIncomplete = false; } else { output.push(''); } return null; }
     const printMatch = line.match(/^print\((.+)\)$/s);
     if (printMatch) {
+      printCalled = true;
       const argsStr = printMatch[1];
       const endMatch = argsStr.match(/,\s*end\s*=\s*("[^"]*"|'[^']*')\s*$/);
       let end = '\n', printArgs = argsStr;
@@ -1320,8 +1403,16 @@ function simulatePython(code, inputValues) {
         return v === undefined ? 'None' : typeof v === 'object' ? JSON.stringify(v) : String(v);
       });
       const lineOut = args.join(' ');
-      if (end === '\n' || end === '\\n') output.push(lineOut);
-      else { if (output.length === 0) output.push(''); output[output.length - 1] += lineOut + end; }
+      if (lineIncomplete) {
+        output[output.length - 1] += lineOut;
+        if (end === '\n' || end === '\\n') lineIncomplete = false;
+        else output[output.length - 1] += end;
+      } else if (end === '\n' || end === '\\n') {
+        output.push(lineOut);
+      } else {
+        output.push(lineOut + end);
+        lineIncomplete = true;
+      }
       return null;
     }
 
@@ -1329,7 +1420,8 @@ function simulatePython(code, inputValues) {
     if (forMatch) {
       const varNames = forMatch[1].split(',').map(v => v.trim());
       const body = getBlock(allLines, idx + 1, indent);
-      const iterable = evaluate(forMatch[2].trim());
+      let iterable = evaluate(forMatch[2].trim());
+      if (typeof iterable === 'string') iterable = iterable.split('');
       if (Array.isArray(iterable)) {
         for (const item of iterable) {
           if (varNames.length === 1) variables[varNames[0]] = item;
@@ -1365,7 +1457,10 @@ function simulatePython(code, inputValues) {
         else if (elseM) { const b = getBlock(allLines, endIdx + 1, indent); branches.push({ condition: null, body: b }); endIdx = endIdx + 1 + b.length; break; }
         else break;
       }
-      for (const br of branches) { if (br.condition === null || evaluate(br.condition)) { executeBlock(br.body); break; } }
+      let ifResult;
+      for (const br of branches) { if (br.condition === null || evaluate(br.condition)) { ifResult = executeBlock(br.body); break; } }
+      if (ifResult === '__BREAK__') return '__BREAK__';
+      if (ifResult !== undefined && ifResult !== '__BREAK__') return { skip: endIdx, returnValue: ifResult };
       return { skip: endIdx };
     }
 
@@ -1411,7 +1506,7 @@ function simulatePython(code, inputValues) {
     const result = executeLine(lines, i);
     if (result && result.skip) i = result.skip - 1;
   }
-  return output.join('\n') || '(No output)';
+  return printCalled ? output.join('\n') : '(No output)';
 }
 
 function escapeHtml(str) { return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
