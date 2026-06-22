@@ -549,6 +549,7 @@ function renderLessonTabContent(lesson) {
             💻 Go to Practice →
           </button>
         </div>`;
+      attachCodeDemos(container);
       break;
 
     case 'practice':
@@ -1515,6 +1516,71 @@ function simulatePython(code, inputValues) {
 }
 
 function escapeHtml(str) { return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// ==================== CODE DEMOS ====================
+function attachCodeDemos(container) {
+  const blocks = container.querySelectorAll('.code-block');
+  blocks.forEach((block, idx) => {
+    const plainCode = block.textContent;
+    if (!plainCode.includes('print')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'code-demo-wrap';
+    block.parentNode.insertBefore(wrap, block);
+    wrap.appendChild(block);
+    const btn = document.createElement('button');
+    btn.className = 'btn-demo';
+    btn.innerHTML = '▶ Watch it run';
+    btn.onclick = () => playCodeDemo(block, btn, plainCode, idx);
+    wrap.appendChild(btn);
+  });
+}
+
+function playCodeDemo(block, btn, code, idx) {
+  btn.classList.add('playing');
+  btn.innerHTML = '⏳ Running...';
+  const originalHTML = block.innerHTML;
+  const wrap = block.parentNode;
+
+  const oldOutput = wrap.querySelector('.code-demo-output');
+  if (oldOutput) oldOutput.remove();
+
+  block.textContent = '';
+  const cursor = document.createElement('span');
+  cursor.className = 'code-demo-cursor';
+  block.appendChild(cursor);
+
+  let charIdx = 0;
+  const speed = code.length > 150 ? 18 : code.length > 80 ? 25 : 35;
+
+  function typeNext() {
+    if (charIdx < code.length) {
+      const ch = code[charIdx];
+      cursor.before(document.createTextNode(ch));
+      charIdx++;
+      setTimeout(typeNext, ch === '\n' ? speed * 4 : speed);
+    } else {
+      cursor.remove();
+      block.innerHTML = originalHTML;
+      playSound('pop');
+      try {
+        const output = simulatePython(code);
+        const outputDiv = document.createElement('div');
+        outputDiv.className = 'code-demo-output';
+        outputDiv.innerHTML = `<span class="output-label">Output</span>${escapeHtml(output)}`;
+        if (wrap.querySelector('.btn-demo')) {
+          wrap.querySelector('.btn-demo').before(outputDiv);
+        } else {
+          wrap.appendChild(outputDiv);
+        }
+        setTimeout(() => outputDiv.classList.add('visible'), 50);
+      } catch (e) {}
+      btn.classList.remove('playing');
+      btn.innerHTML = '▶ Watch it run';
+    }
+  }
+  playSound('whoosh');
+  typeNext();
+}
 
 // ==================== PROJECTS ====================
 function renderProjects() {
