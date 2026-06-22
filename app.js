@@ -542,7 +542,13 @@ function renderLessonTabContent(lesson) {
 
   switch (currentLessonTab) {
     case 'learn':
+      const hasSlides = typeof LESSON_SLIDES !== 'undefined' && LESSON_SLIDES[lesson.id];
       container.innerHTML = `
+        ${hasSlides ? `<div style="text-align:center;margin-bottom:20px">
+          <button class="btn-watch-lesson" onclick="openSlidePlayer('${lesson.id}')">
+            <span class="play-icon">▶</span> Watch Video Lesson
+          </button>
+        </div>` : ''}
         <div class="lesson-content">${lesson.content}</div>
         <div style="margin-top:20px;text-align:center">
           <button class="btn btn-primary btn-lg" onclick="switchLessonTab('practice', '${lesson.id}')" style="min-width:200px">
