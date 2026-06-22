@@ -36,8 +36,8 @@ const LESSON_EXTRAS = {
         hint: 'Use +, -, *, and / operators.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('+') && code.includes('-') && code.includes('*') && code.includes('/') ? { success: true, message: 'All 4 operations done!' } : { success: false, message: 'Use all 4 math operators: + - * /' } } },
       { prompt: 'Create a variable called price = 19.99. Apply a 20% discount and print the new price.', difficulty: 'medium', xp: 8,
-        hint: 'new_price = price * 0.8  or  price - (price * 0.20)',
-        validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('price') && code.includes('print') && (code.includes('0.8') || code.includes('0.2') || code.includes('20')) ? { success: true, message: 'Discount calculated!' } : { success: false, message: 'Calculate the discount using multiplication.' } } },
+        hint: 'Think about what percentage you pay after removing 20%. Multiply price by that decimal.',
+        validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('price') && code.includes('print') && (code.includes('0.8') || code.includes('.8') || code.includes('0.2') || code.includes('.2') || code.includes('20')) ? { success: true, message: 'Discount calculated!' } : { success: false, message: 'Calculate the discount using multiplication.' } } },
     ],
     quiz: [
       { question: 'What is a variable in Python?', options: ['A type of function', 'A named container for storing data', 'A math equation', 'A type of loop'], correct: 1, explanation: 'Variables store data values that can be used and changed later.' },
@@ -54,13 +54,13 @@ const LESSON_EXTRAS = {
   'w1l3': {
     assignments: [
       { prompt: 'Create a tip calculator. Set meal_cost = 45.50 and tip_percent = 18. Calculate and print the tip and total.', difficulty: 'easy', xp: 5,
-        hint: 'tip = meal_cost * (tip_percent / 100)',
+        hint: 'To find the tip amount, multiply the cost by the percentage as a decimal.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('*') && code.includes('print') && code.includes('=') ? { success: true, message: 'Tip calculator works!' } : { success: false, message: 'Calculate the tip using multiplication.' } } },
       { prompt: 'Convert a temperature from Celsius to Fahrenheit. Formula: F = C * 9/5 + 32. Test with 25 degrees C.', difficulty: 'medium', xp: 8,
-        hint: 'fahrenheit = celsius * 9/5 + 32',
+        hint: 'The formula is given in the prompt — store the result in a variable and print it.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('9') && code.includes('5') && code.includes('32') && code.includes('print') ? { success: true, message: 'Temperature converted!' } : { success: false, message: 'Use the formula F = C * 9/5 + 32' } } },
       { prompt: 'Calculate the area and perimeter of a rectangle with width=12 and height=8. Use f-strings to display results nicely.', difficulty: 'medium', xp: 8,
-        hint: 'area = width * height, perimeter = 2 * (width + height)',
+        hint: 'Area uses multiplication. Perimeter adds all sides — there are 2 widths and 2 heights.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('*') && code.includes('+') && code.includes('print') ? { success: true, message: 'Geometry master!' } : { success: false, message: 'Calculate area (w*h) and perimeter 2*(w+h).' } } },
     ],
     quiz: [
@@ -113,10 +113,10 @@ const LESSON_EXTRAS = {
   'w2l1': {
     assignments: [
       { prompt: 'Create a login system: ask for username and password. Only print "Access Granted" if both match your stored values.', difficulty: 'medium', xp: 8,
-        hint: 'Use if username == stored_user and password == stored_pass:',
+        hint: 'Store the correct username and password in variables, then compare what the user typed.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('if') && code.includes('and') && code.includes('input') ? { success: true, message: 'Login system built!' } : { success: false, message: 'Use if with and to check both conditions.' } } },
       { prompt: 'Write a program that checks if a number is positive, negative, or zero using if/elif/else.', difficulty: 'easy', xp: 5,
-        hint: 'if num > 0: ... elif num < 0: ... else: ...',
+        hint: 'A number can be positive, negative, or zero — check each case.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('if') && code.includes('elif') && code.includes('else') ? { success: true, message: 'Number checker works!' } : { success: false, message: 'Use if, elif, and else.' } } },
     ],
     quiz: [
@@ -133,10 +133,10 @@ const LESSON_EXTRAS = {
   'w2l2': {
     assignments: [
       { prompt: 'Print all even numbers from 1 to 50 using a for loop. Print them on one line separated by spaces.', difficulty: 'easy', xp: 5,
-        hint: 'for i in range(2, 51, 2): print(i, end=" ")',
+        hint: 'range() can take a step argument. Even numbers increase by 2.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('for') && code.includes('range') && code.includes('print') ? { success: true, message: 'Even numbers printed!' } : { success: false, message: 'Use for with range().' } } },
       { prompt: 'Create a multiplication table for any number (1-12) using a for loop.', difficulty: 'medium', xp: 8,
-        hint: 'for i in range(1, 13): print(f"{num} x {i} = {num * i}")',
+        hint: 'Loop from 1 to 12 and multiply the number by each value in the loop.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('for') && code.includes('*') && code.includes('print') ? { success: true, message: 'Multiplication table done!' } : { success: false, message: 'Use a for loop with multiplication.' } } },
       { prompt: 'Calculate the sum of all numbers from 1 to 100 using a for loop. Print the total.', difficulty: 'easy', xp: 5,
         hint: 'total = 0, then loop and add each number.',
@@ -155,10 +155,10 @@ const LESSON_EXTRAS = {
   'w2l3': {
     assignments: [
       { prompt: 'Create a password validator: keep asking for a password until the user enters the correct one. Count attempts.', difficulty: 'medium', xp: 8,
-        hint: 'while password != correct_password: ask again. Use a counter variable.',
+        hint: 'Keep asking until they get it right, but count each attempt and stop after 3.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('while') && code.includes('input') ? { success: true, message: 'Password validator built!' } : { success: false, message: 'Use a while loop with input().' } } },
       { prompt: 'Write a countdown from 10 to 1 using a while loop, then print "LIFTOFF!"', difficulty: 'easy', xp: 5,
-        hint: 'count = 10, while count > 0: print, count -= 1',
+        hint: 'Start from 10 and keep subtracting 1 each loop until you reach 0.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('while') && code.includes('print') ? { success: true, message: 'Liftoff!' } : { success: false, message: 'Use a while loop for the countdown.' } } },
     ],
     quiz: [
@@ -214,10 +214,10 @@ const LESSON_EXTRAS = {
   'w3l1': {
     assignments: [
       { prompt: 'Write a function called is_even(n) that returns True if n is even, False otherwise. Test it with 5 numbers.', difficulty: 'easy', xp: 5,
-        hint: 'return n % 2 == 0',
+        hint: 'A number is even if dividing by 2 leaves no remainder.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('def') && code.includes('return') && code.includes('%') ? { success: true, message: 'Even checker function works!' } : { success: false, message: 'Create a function with def that returns True/False.' } } },
       { prompt: 'Create a function celsius_to_fahrenheit(c) and another fahrenheit_to_celsius(f). Test both.', difficulty: 'medium', xp: 8,
-        hint: 'F = C * 9/5 + 32 and C = (F - 32) * 5/9',
+        hint: 'You need two functions — one converts each direction. The formulas are inverses of each other.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return (code.match(/def /g) || []).length >= 2 ? { success: true, message: 'Temperature converter functions done!' } : { success: false, message: 'Create 2 functions with def.' } } },
     ],
     quiz: [
@@ -233,7 +233,7 @@ const LESSON_EXTRAS = {
   'w3l2': {
     assignments: [
       { prompt: 'Write a function that takes a list of numbers and returns a dictionary with keys "min", "max", "avg", and "sum".', difficulty: 'medium', xp: 8,
-        hint: 'def stats(numbers): return {"min": min(numbers), ...}',
+        hint: 'Python has built-in functions for min, max, sum, and len. Return them all in a dictionary.',
         validator: (code) => { const py = pyCheck(code); if (!py.syntaxOk()) return { success: false, message: SYNTAX_ERR }; return code.includes('def') && code.includes('return') && code.includes('{') ? { success: true, message: 'Stats function done!' } : { success: false, message: 'Create a function that returns a dictionary.' } } },
     ],
     quiz: [
