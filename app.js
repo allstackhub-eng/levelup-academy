@@ -63,6 +63,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyTheme(state.theme || 'cosmic');
   initParticles();
 
+  if (window.location.hash === '#parent') {
+    showParentLogin();
+    return;
+  }
+
   if (api.isLoggedIn() && state.onboarded) {
     const serverProgress = await api.loadProgress();
     if (serverProgress) {
