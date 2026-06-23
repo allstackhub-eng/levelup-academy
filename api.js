@@ -33,7 +33,7 @@ const api = {
         return null;
       }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Request failed');
+      if (!res.ok) return { error: data.error || 'Request failed' };
       return data;
     } catch (err) {
       console.warn('API request failed:', err.message);

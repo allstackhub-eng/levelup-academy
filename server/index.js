@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
 app.use(cors({
-  origin: [process.env.FRONTEND_URL, 'http://localhost:3456', 'http://localhost:5500'],
+  origin: [process.env.FRONTEND_URL, 'https://levelup-academy.allstackhub.com', 'http://localhost:3456', 'http://localhost:5500'],
   credentials: true
 }));
 app.use(express.json({ limit: '1mb' }));
@@ -78,7 +78,7 @@ app.post('/api/signup', async (req, res) => {
               <div style="background:#f3f4f6;border-radius:12px;padding:20px;text-align:center;margin:20px 0">
                 <span style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#6366f1">${accessCode}</span>
               </div>
-              <p><a href="https://allstackhub-eng.github.io/levelup-academy/#parent" style="display:inline-block;background:#6366f1;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">View Progress Dashboard</a></p>
+              <p><a href="https://levelup-academy.allstackhub.com/#parent" style="display:inline-block;background:#6366f1;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">View Progress Dashboard</a></p>
               <p style="color:#6b7280;font-size:13px">Enter your email and the code above to see their coding journey.</p>
               <p style="color:#9ca3af;font-size:13px">If you didn't expect this email, you can safely ignore it.</p>
             </div>
@@ -431,7 +431,7 @@ app.post('/api/parent/resend-code', async (req, res) => {
           <div style="background:#f3f4f6;border-radius:12px;padding:20px;text-align:center;margin:20px 0">
             <span style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#6366f1">${pa.access_code}</span>
           </div>
-          <p><a href="https://allstackhub-eng.github.io/levelup-academy/#parent" style="display:inline-block;background:#6366f1;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">View Progress Dashboard</a></p>
+          <p><a href="https://levelup-academy.allstackhub.com/#parent" style="display:inline-block;background:#6366f1;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">View Progress Dashboard</a></p>
           <p style="color:#9ca3af;font-size:13px">If you didn't request this, you can safely ignore it.</p>
         </div>
       `
