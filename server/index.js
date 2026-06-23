@@ -124,6 +124,30 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+app.post('/api/reset-password', async (req, res) => {
+  const { username, parentEmail, newPassword } = req.body;
+  if (!username || !parentEmail || !newPassword) return res.status(400).json({ error: 'All fields are required' });
+  if (newPassword.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
+
+  const pool = getPool();
+  try {
+    const [rows] = await pool.execute('SELECT id, parent_email FROM users WHERE username = ?', [username.trim()]);
+    if (!rows.length) return res.status(404).json({ error: 'Coder name not found' });
+
+    const user = rows[0];
+    if (!user.parent_email || user.parent_email.toLowerCase() !== parentEmail.trim().toLowerCase()) {
+      return res.status(403).json({ error: 'Parent email does not match our records' });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.execute('UPDATE users SET password_hash = ? WHERE id = ?', [hash, user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // --- Progress routes ---
 app.get('/api/progress', auth, async (req, res) => {
   const pool = getPool();

@@ -225,6 +225,59 @@ async function handleLogin() {
   showToast('Welcome back, ' + state.name + '!', 'Let\'s keep coding! 🎉');
 }
 
+function showResetPassword() {
+  document.getElementById('auth-login').classList.add('hidden');
+  document.getElementById('auth-reset').classList.remove('hidden');
+  document.getElementById('resetError').classList.add('hidden');
+  document.getElementById('resetSuccess').classList.add('hidden');
+}
+
+async function handleResetPassword() {
+  const name = document.getElementById('resetNameInput').value.trim();
+  const email = document.getElementById('resetEmailInput').value.trim();
+  const pw = document.getElementById('resetPasswordInput').value;
+  const pw2 = document.getElementById('resetPasswordConfirmInput').value;
+  const errorEl = document.getElementById('resetError');
+  const successEl = document.getElementById('resetSuccess');
+
+  errorEl.classList.add('hidden');
+  successEl.classList.add('hidden');
+
+  if (!name || !email) {
+    errorEl.textContent = 'Please enter your coder name and parent email!';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+  if (!pw || pw.length < 4) {
+    errorEl.textContent = 'Password must be at least 4 characters!';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+  if (pw !== pw2) {
+    errorEl.textContent = 'Passwords do not match!';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  const result = await api.resetPassword(name, email, pw);
+  if (!result) {
+    errorEl.textContent = 'Could not connect to server. Try again!';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+  if (result.error) {
+    errorEl.textContent = result.error;
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  successEl.textContent = 'Password reset! You can now log in with your new password.';
+  successEl.classList.remove('hidden');
+  document.getElementById('resetPasswordInput').value = '';
+  document.getElementById('resetPasswordConfirmInput').value = '';
+  playSound('levelUp');
+}
+
 function handleLogout() {
   api.logout();
   state = {

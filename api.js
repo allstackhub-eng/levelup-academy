@@ -59,6 +59,13 @@ const api = {
     return data;
   },
 
+  async resetPassword(username, parentEmail, newPassword) {
+    return await this.request('/api/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ username, parentEmail, newPassword })
+    });
+  },
+
   logout() {
     this.clearAuth();
   },

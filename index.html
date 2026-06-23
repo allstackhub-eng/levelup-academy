@@ -344,6 +344,24 @@
         <input type="password" id="loginPasswordInput" placeholder="Enter your password..." autocomplete="current-password">
         <p id="loginError" class="auth-error hidden"></p>
         <button class="btn btn-primary btn-lg btn-glow" onclick="playSound('levelUp'); handleLogin()">Welcome Back! 🎉</button>
+        <p style="text-align:center;margin-top:12px"><a href="#" onclick="event.preventDefault(); showResetPassword()" style="color:var(--primary-light);font-size:0.9rem">Forgot password?</a></p>
+      </div>
+
+      <!-- Reset password form -->
+      <div id="auth-reset" class="hidden">
+        <p style="color:var(--text-dim);font-size:0.9rem;margin-bottom:12px">Enter your coder name and parent's email to reset your password.</p>
+        <label class="input-label">Your coder name:</label>
+        <input type="text" id="resetNameInput" placeholder="Enter your coder name..." maxlength="20">
+        <label class="input-label">Parent's email:</label>
+        <input type="email" id="resetEmailInput" placeholder="Parent's email used at signup...">
+        <label class="input-label">New password:</label>
+        <input type="password" id="resetPasswordInput" placeholder="At least 4 characters...">
+        <label class="input-label">Confirm new password:</label>
+        <input type="password" id="resetPasswordConfirmInput" placeholder="Type it again...">
+        <p id="resetError" class="auth-error hidden"></p>
+        <p id="resetSuccess" class="hidden" style="color:var(--success);font-size:0.9rem;text-align:center"></p>
+        <button class="btn btn-primary btn-lg btn-glow" onclick="playSound('click'); handleResetPassword()">Reset Password 🔑</button>
+        <p style="text-align:center;margin-top:12px"><a href="#" onclick="event.preventDefault(); showAuthTab('login', document.querySelectorAll('.auth-tab')[1])" style="color:var(--primary-light);font-size:0.9rem">← Back to login</a></p>
       </div>
     </div>
   </div>
@@ -360,8 +378,8 @@
   <script src="data.js?v=9"></script>
   <script src="extras.js?v=9"></script>
   <script src="sounds.js?v=5"></script>
-  <script src="api.js?v=9"></script>
+  <script src="api.js?v=10"></script>
   <script src="slides.js?v=1"></script>
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>
