@@ -68,6 +68,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  if (window.location.hash === '#admin') {
+    const savedKey = sessionStorage.getItem('adminKey');
+    if (savedKey) { adminKey = savedKey; loadAdminDashboard(); }
+    else showAdminLogin();
+    return;
+  }
+
   if (api.isLoggedIn() && state.onboarded) {
     const serverProgress = await api.loadProgress();
     if (serverProgress) {
