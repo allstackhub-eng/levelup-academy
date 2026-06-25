@@ -131,7 +131,10 @@ app.post('/api/reset-password', async (req, res) => {
 
   const pool = getPool();
   try {
-    const [rows] = await pool.execute('SELECT id, parent_email FROM users WHERE username = ?', [username.trim()]);
+    const [rows] = await pool.execute(
+      'SELECT u.id, pa.parent_email FROM users u LEFT JOIN parent_access pa ON u.id = pa.user_id WHERE u.username = ?',
+      [username.trim()]
+    );
     if (!rows.length) return res.status(404).json({ error: 'Coder name not found' });
 
     const user = rows[0];
@@ -463,6 +466,79 @@ app.post('/api/parent/resend-code', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Resend code error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// --- Admin routes ---
+const ADMIN_KEY = process.env.ADMIN_KEY;
+
+function adminAuth(req, res, next) {
+  const key = req.headers['x-admin-key'];
+  if (!ADMIN_KEY || key !== ADMIN_KEY) return res.status(403).json({ error: 'Unauthorized' });
+  next();
+}
+
+app.get('/api/admin/users', adminAuth, async (req, res) => {
+  const pool = getPool();
+  try {
+    const [users] = await pool.execute(`
+      SELECT u.id, u.username, u.avatar, u.theme, u.created_at,
+        pa.parent_name, pa.parent_email,
+        COALESCE(p.xp, 0) as xp, COALESCE(p.streak, 0) as streak, COALESCE(p.level, 1) as level,
+        p.lessons_completed, p.quizzes_passed, p.projects_completed,
+        p.updated_at as last_active
+      FROM users u
+      LEFT JOIN progress p ON u.id = p.user_id
+      LEFT JOIN parent_access pa ON u.id = pa.user_id
+      ORDER BY u.created_at DESC
+    `);
+    res.json(users);
+  } catch (err) {
+    console.error('Admin users error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/admin/stats', adminAuth, async (req, res) => {
+  const pool = getPool();
+  try {
+    const [[{total_users}]] = await pool.execute('SELECT COUNT(*) as total_users FROM users');
+    const [[{active_today}]] = await pool.execute("SELECT COUNT(*) as active_today FROM progress WHERE DATE(updated_at) = CURDATE()");
+    const [[{active_week}]] = await pool.execute("SELECT COUNT(*) as active_week FROM progress WHERE updated_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)");
+    const [[{total_xp}]] = await pool.execute('SELECT COALESCE(SUM(xp), 0) as total_xp FROM progress');
+    const [[{total_lessons}]] = await pool.execute("SELECT COALESCE(SUM(JSON_LENGTH(lessons_completed)), 0) as total_lessons FROM progress WHERE lessons_completed IS NOT NULL AND lessons_completed != '[]'");
+    const [signups] = await pool.execute("SELECT DATE(created_at) as date, COUNT(*) as count FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) GROUP BY DATE(created_at) ORDER BY date");
+    res.json({ total_users, active_today, active_week, total_xp, total_lessons, signups });
+  } catch (err) {
+    console.error('Admin stats error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.delete('/api/admin/users/:id', adminAuth, async (req, res) => {
+  const pool = getPool();
+  try {
+    await pool.execute('DELETE FROM progress WHERE user_id = ?', [req.params.id]);
+    await pool.execute('DELETE FROM achievements WHERE user_id = ?', [req.params.id]);
+    await pool.execute('DELETE FROM users WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin delete error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/admin/reset-password/:id', adminAuth, async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
+  const pool = getPool();
+  try {
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.execute('UPDATE users SET password_hash = ? WHERE id = ?', [hash, req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin reset password error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

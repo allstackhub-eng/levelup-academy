@@ -3,8 +3,10 @@ const ADMIN_API = 'https://levelup-academy-api.fly.dev';
 let adminKey = '';
 
 function showAdminLogin() {
-  document.getElementById('mainContent').innerHTML = '';
-  document.querySelector('.sidebar').style.display = 'none';
+  const mc = document.getElementById('mainContent');
+  if (mc) mc.innerHTML = '';
+  const sb = document.querySelector('.sidebar');
+  if (sb) sb.style.display = 'none';
   document.getElementById('onboarding-modal')?.classList.add('hidden');
 
   const el = document.createElement('div');
