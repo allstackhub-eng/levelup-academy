@@ -225,6 +225,7 @@ async function handleLogin() {
     state.projectsCompleted = state.completedProjects.length;
   }
 
+  checkStreak();
   saveState();
   document.getElementById('onboarding-modal').classList.add('hidden');
   document.getElementById('logoutBtn').style.display = '';

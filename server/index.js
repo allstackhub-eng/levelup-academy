@@ -192,7 +192,7 @@ app.put('/api/progress', auth, async (req, res) => {
         saved_code = ?, lesson_tab_state = ?, hints_used = ?, weekly_activity = ?
       WHERE user_id = ?
     `, [
-      xp || 0, level || 1, streak || 0, lastActive || null,
+      xp || 0, level || 1, streak || 0, lastActive ? new Date(lastActive) : new Date(),
       JSON.stringify(lessonsCompleted || []),
       JSON.stringify(quizzesPassed || []),
       JSON.stringify(projectsCompleted || []),
